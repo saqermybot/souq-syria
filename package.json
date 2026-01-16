@@ -1,0 +1,9 @@
+{
+  "name": "souq-syria",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}
