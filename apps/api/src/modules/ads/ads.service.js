@@ -1,12 +1,18 @@
+import fs from "fs/promises";
+import path from "path";
 import { pool } from "../../db/pool.js";
 
-export async function createAd(ad) {
+function getUploadsDir() {
+  return process.env.UPLOADS_DIR || "/var/www/souq/uploads";
+}
+
+export async function createAd(ad, sellerGuestId) {
   const sql = `
     INSERT INTO ads
       (title, description, price, currency, phone_e164, province,
-       category_key, subcategory_key, deal_type, car_year, images)
+       category_key, subcategory_key, deal_type, car_year, images, seller_guest_id)
     VALUES
-      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb)
+      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12)
     RETURNING id
   `;
 
@@ -22,6 +28,7 @@ export async function createAd(ad) {
     ad.deal_type,
     ad.car_year ?? null,
     JSON.stringify(ad.images || []),
+    sellerGuestId,
   ];
 
   const r = await pool.query(sql, params);
@@ -32,7 +39,7 @@ export async function getAdById(id) {
   const r = await pool.query(
     `SELECT id, title, description, price, currency, phone_e164, province,
             category_key, subcategory_key, deal_type, car_year, images,
-            favorites_count, views_count, created_at
+            favorites_count, views_count, created_at, seller_guest_id
      FROM ads
      WHERE id = $1
      LIMIT 1`,
@@ -85,4 +92,41 @@ export async function listAds(f) {
 
   const r = await pool.query(sql, params);
   return r.rows;
+}
+
+export async function deleteAd({ adId, guestId, admin }) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const r = await client.query(
+      "SELECT seller_guest_id FROM ads WHERE id=$1 FOR UPDATE",
+      [adId]
+    );
+    if (r.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return { ok: false, error: "NOT_FOUND" };
+    }
+
+    const seller = r.rows[0].seller_guest_id || "";
+
+    if (!admin && seller && seller !== guestId) {
+      await client.query("ROLLBACK");
+      return { ok: false, error: "FORBIDDEN" };
+    }
+
+    // delete row (cascades favorites/views tables)
+    await client.query("DELETE FROM ads WHERE id=$1", [adId]);
+    await client.query("COMMIT");
+
+    // delete images directory from disk
+    const dir = path.join(getUploadsDir(), "ads", String(adId));
+    await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
+    return { ok: true };
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
 }
