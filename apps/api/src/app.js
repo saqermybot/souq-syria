@@ -1,6 +1,7 @@
 import express from "express";
 import { adsRouter } from "./modules/ads/ads.routes.js";
 import { viewsRouter } from "./modules/views/views.routes.js";
+import { favoritesRouter } from "./modules/favorites/favorites.routes.js";
 
 export function createApp() {
   const app = express();
@@ -10,6 +11,7 @@ export function createApp() {
 
   app.use("/api", adsRouter);
   app.use("/api", viewsRouter);
+  app.use("/api", favoritesRouter);
 
   app.use((req, res) => res.status(404).json({ ok: false, error: "NOT_FOUND" }));
 
