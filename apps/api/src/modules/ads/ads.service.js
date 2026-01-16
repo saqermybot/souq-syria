@@ -41,31 +41,33 @@ export async function getAdById(id) {
   return r.rows[0] || null;
 }
 
-export async function listAds(filters) {
+export async function listAds(f) {
   const where = [];
   const params = [];
   let i = 1;
 
-  const add = (cond, val) => {
-    where.push(cond.replace("?", `$${i}`));
+  const add = (sqlCond, val) => {
+    where.push(sqlCond.replace("?", `$${i}`));
     params.push(val);
     i += 1;
   };
 
-  if (filters.query) {
-    add(`(title ILIKE '%' || ? || '%' OR description ILIKE '%' || ? || '%')`, filters.query);
-    add(`?`, filters.query);
+  if (f.query) {
+    where.push(`(title ILIKE '%' || $${i} || '%' OR description ILIKE '%' || $${i} || '%')`);
+    params.push(f.query);
+    i += 1;
   }
-  if (filters.province) add(`province = ?`, filters.province);
-  if (filters.category_key) add(`category_key = ?`, filters.category_key);
-  if (filters.subcategory_key) add(`subcategory_key = ?`, filters.subcategory_key);
-  if (filters.deal_type) add(`deal_type = ?`, filters.deal_type);
 
-  if (filters.price_min) add(`price >= ?`, Number(filters.price_min));
-  if (filters.price_max) add(`price <= ?`, Number(filters.price_max));
+  if (f.province) add(`province = ?`, f.province);
+  if (f.category_key) add(`category_key = ?`, f.category_key);
+  if (f.subcategory_key) add(`subcategory_key = ?`, f.subcategory_key);
+  if (f.deal_type) add(`deal_type = ?`, f.deal_type);
 
-  if (filters.car_year_min) add(`car_year >= ?`, Number(filters.car_year_min));
-  if (filters.car_year_max) add(`car_year <= ?`, Number(filters.car_year_max));
+  if (f.price_min) add(`price >= ?`, Number(f.price_min));
+  if (f.price_max) add(`price <= ?`, Number(f.price_max));
+
+  if (f.car_year_min) add(`car_year >= ?`, Number(f.car_year_min));
+  if (f.car_year_max) add(`car_year <= ?`, Number(f.car_year_max));
 
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
@@ -78,8 +80,8 @@ export async function listAds(filters) {
     LIMIT $${i} OFFSET $${i + 1}
   `;
 
-  params.push(filters.limit);
-  params.push(filters.offset);
+  params.push(f.limit);
+  params.push(f.offset);
 
   const r = await pool.query(sql, params);
   return r.rows;
