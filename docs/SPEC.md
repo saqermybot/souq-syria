@@ -1,0 +1,12 @@
+Default country for phone: SY
+- Country defaults to SY when unknown.
+- Country auto-selected by (saved -> locale -> default SY).
+- User types phone number only.
+- Stored format: E.164 (e.g. +963...).
+- Validation on both frontend and backend.
+- One source of truth for categories/filters in packages/shared.
+- No hardcoded categories in frontend or backend.
+- Ad details page layout is fixed.
+- Post ad form layout is fixed.
+- Favorites and views are not treated as private.
+- Messaging is a separate module (no coupling with favorites/filters).

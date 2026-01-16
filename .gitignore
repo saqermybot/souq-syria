@@ -1,0 +1,15 @@
+node_modules/
+.next/
+dist/
+build/
+
+.env
+.env.*
+!.env.example
+
+# runtime data (never in git)
+uploads/
+logs/
+
+# misc
+.DS_Store
