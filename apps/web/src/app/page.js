@@ -1,0 +1,77 @@
+"use client";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { apiGet, apiPost } from "@/lib/api";
+
+function AdCard({ ad, onToggleFav }) {
+  const img = ad.images?.[0];
+
+  return (
+    <div className="card">
+      {img ? (
+        <img src={img} alt={ad.title} style={{ width: "100%", height: 190, objectFit: "cover" }} />
+      ) : (
+        <div style={{ height: 190, background: "rgba(255,255,255,.03)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted)" }}>
+          No image
+        </div>
+      )}
+      <div className="card-body">
+        <div className="row">
+          <Link href={`/ad/${ad.id}`} className="title" style={{ margin: 0 }}>
+            {ad.title}
+          </Link>
+          <button className="icon-btn" onClick={() => onToggleFav(ad.id)} title="Favorite">❤️</button>
+        </div>
+        <div className="muted">{ad.province} • {ad.deal_type}</div>
+        <div className="row" style={{ marginTop: 10 }}>
+          <div style={{ fontWeight: 800 }}>{ad.price} {ad.currency}</div>
+          <div className="muted">👁 {ad.views_count} • ❤️ {ad.favorites_count}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function HomePage() {
+  const [items, setItems] = useState([]);
+  const [err, setErr] = useState("");
+
+  async function load() {
+    setErr("");
+    try {
+      const data = await apiGet("/api/ads");
+      setItems(data.items || []);
+    } catch (e) {
+      setErr(String(e.message || e));
+    }
+  }
+
+  async function toggleFav(id) {
+    try {
+      await apiPost(`/api/ad/${id}/favorite`, {});
+      await load();
+    } catch (e) {
+      alert(`Favorite failed: ${e.message}`);
+    }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  return (
+    <div>
+      <div className="row" style={{ marginBottom: 14 }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 24 }}>آخر الإعلانات</h1>
+          <div className="muted">سريع، واضح، ومنضبط.</div>
+        </div>
+        <Link className="btn btn-primary" href="/post">+ إضافة إعلان</Link>
+      </div>
+
+      {err ? <div className="card"><div className="card-body">Error: {err}</div></div> : null}
+
+      <div className="grid">
+        {items.map((ad) => <AdCard key={ad.id} ad={ad} onToggleFav={toggleFav} />)}
+      </div>
+    </div>
+  );
+}
