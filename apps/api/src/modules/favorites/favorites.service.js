@@ -55,3 +55,15 @@ export async function listFavorites({ guestId, limit = 50, offset = 0 }) {
   );
   return r.rows;
 }
+
+export async function listFavoriteIds({ guestId }) {
+  const r = await pool.query(
+    `SELECT ad_id
+     FROM favorites
+     WHERE guest_id = $1
+     ORDER BY created_at DESC
+     LIMIT 500`,
+    [guestId]
+  );
+  return r.rows.map(x => String(x.ad_id));
+}

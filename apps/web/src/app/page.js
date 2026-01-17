@@ -3,17 +3,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { apiGet, apiPost } from "@/lib/api";
 
-function AdCard({ ad, onToggleFav }) {
+function AdCard({ ad, liked, onToggleFav }) {
   const img = ad.images?.[0];
-  const liked = (ad.favorites_count || 0) > 0;
 
   return (
     <Link href={`/ad/${ad.id}`} className="card card-link">
-      {img ? (
-        <img src={img} alt={ad.title} className="thumb" />
-      ) : (
-        <div className="thumb-empty">No image</div>
-      )}
+      {img ? <img src={img} alt={ad.title} className="thumb" /> : <div className="thumb-empty">No image</div>}
 
       <button
         className={`fav-bubble ${liked ? "on" : ""}`}
@@ -38,13 +33,19 @@ function AdCard({ ad, onToggleFav }) {
 
 export default function HomePage() {
   const [items, setItems] = useState([]);
+  const [favIds, setFavIds] = useState(new Set());
   const [err, setErr] = useState("");
 
   async function load() {
     setErr("");
     try {
-      const data = await apiGet("/api/ads");
-      setItems(data.items || []);
+      const [ads, fav] = await Promise.all([
+        apiGet("/api/ads"),
+        apiGet("/api/me/favorites-ids"),
+      ]);
+
+      setItems(ads.items || []);
+      setFavIds(new Set((fav.ids || []).map(String)));
     } catch (e) {
       setErr(String(e.message || e));
     }
@@ -74,7 +75,9 @@ export default function HomePage() {
       {err ? <div className="card"><div className="card-body">Error: {err}</div></div> : null}
 
       <div className="grid dense">
-        {items.map((ad) => <AdCard key={ad.id} ad={ad} onToggleFav={toggleFav} />)}
+        {items.map((ad) => (
+          <AdCard key={ad.id} ad={ad} liked={favIds.has(String(ad.id))} onToggleFav={toggleFav} />
+        ))}
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { validateAdId } from "../ads/ads.validation.js";
-import { listFavorites, toggleFavorite } from "./favorites.service.js";
+import { listFavorites, toggleFavorite, listFavoriteIds } from "./favorites.service.js";
 
 export const favoritesRouter = Router();
 
@@ -26,7 +26,7 @@ favoritesRouter.post("/ad/:id/favorite", async (req, res, next) => {
   }
 });
 
-// GET /api/me/favorites
+// GET /api/me/favorites (full cards)
 favoritesRouter.get("/me/favorites", async (req, res, next) => {
   try {
     const guestId = getGuestId(req);
@@ -37,6 +37,19 @@ favoritesRouter.get("/me/favorites", async (req, res, next) => {
 
     const items = await listFavorites({ guestId, limit, offset });
     return res.json({ ok: true, items });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+// GET /api/me/favorites-ids (lightweight)
+favoritesRouter.get("/me/favorites-ids", async (req, res, next) => {
+  try {
+    const guestId = getGuestId(req);
+    if (!guestId) return res.status(400).json({ ok: false, error: "MISSING_GUEST_ID" });
+
+    const ids = await listFavoriteIds({ guestId });
+    return res.json({ ok: true, ids });
   } catch (err) {
     return next(err);
   }
