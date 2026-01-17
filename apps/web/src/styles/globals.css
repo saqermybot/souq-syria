@@ -220,3 +220,28 @@ a{ color:inherit; text-decoration:none; }
 .fav-bubble.on .fav-count{
   color: rgba(0,0,0,.75);
 }
+
+/* Royal blue luxury favorite */
+.fav-bubble{
+  transition: transform .12s ease, background .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+
+.fav-bubble.on{
+  background: rgba(235, 244, 255, .92);          /* soft blue glass */
+  border-color: rgba(59, 130, 246, .40);         /* blue border */
+  box-shadow: 0 10px 26px rgba(0,0,0,.22), 0 0 0 6px rgba(59,130,246,.14);
+}
+
+.fav-bubble .fav-icon{
+  transition: color .18s ease, transform .18s ease, filter .18s ease;
+}
+
+.fav-bubble.on .fav-icon{
+  color: rgba(37, 99, 235, .95);                 /* royal blue */
+  transform: translateY(-.5px);
+  filter: drop-shadow(0 4px 10px rgba(37,99,235,.22));
+}
+
+.fav-bubble.on .fav-count{
+  color: rgba(10, 40, 90, .85);
+}
