@@ -11,5 +11,5 @@ build/
 uploads/
 logs/
 
-# misc
+# OS
 .DS_Store
