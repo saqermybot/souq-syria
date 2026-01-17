@@ -32,16 +32,27 @@ export default function AdCard({ ad, liked, onToggleFav, catLabel }) {
           {clampOneLine(ad.title, 44)}
         </div>
 
-        <div className="muted ellipsis" style={{ fontSize: 12, display: "flex", gap: 8, alignItems: "center" }}>
-          <span>{(ad.seller_name || "Seller")} • {ad.province} • {catLabel}</span>
-          {deal ? <span className="deal-badge">{deal}</span> : null}
+        {/* Info line: keep it clean */}
+        <div className="muted ellipsis" style={{ fontSize: 12 }}>
+          {(ad.seller_name || "Seller")} • {ad.province} • {catLabel}
         </div>
 
-        <div className="row" style={{ marginTop: 8 }}>
-          <div style={{ fontWeight: 900, fontSize: 15 }}>
+        {/* Bottom line: price + deal */}
+        <div className="row" style={{ marginTop: 8, alignItems: "center", gap: 10 }}>
+          <div
+            style={{
+              fontWeight: 900,
+              fontSize: 15,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+            title={formatPrice(ad.price, ad.currency)}
+          >
             {formatPrice(ad.price, ad.currency)}
           </div>
-          <div className="muted" style={{ fontSize: 12 }}>👁 {ad.views_count}</div>
+
+          {deal ? <span className="deal-badge">{deal}</span> : <span />}
         </div>
       </div>
     </Link>
