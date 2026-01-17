@@ -62,10 +62,18 @@ export default function SellerPublic({ params }) {
         <Link className="btn" href="/">← الرئيسية</Link>
       </div>
 
-      {seller.bio ? <div className="card"><div className="card-body">{seller.bio}</div></div> : null}
+      <div className="card">
+        <div className="card-body">
+          {seller.bio ? <div style={{ whiteSpace: "pre-wrap" }}>{seller.bio}</div> : <div className="muted">لا توجد نبذة بعد.</div>}
+          <div className="hr" />
+          <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+            {seller.phone_public ? <div className="badge">📞 {seller.phone_public}</div> : null}
+            {seller.address_public ? <div className="badge">📍 {seller.address_public}</div> : null}
+          </div>
+        </div>
+      </div>
 
       <div className="hr" />
-
       <div className="grid">
         {ads.map(ad => <AdCard key={ad.id} ad={ad} />)}
       </div>
