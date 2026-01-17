@@ -5,6 +5,7 @@ import { favoritesRouter } from "./modules/favorites/favorites.routes.js";
 import { uploadsRouter } from "./modules/uploads/uploads.routes.js";
 import { sellersRouter } from "./modules/sellers/sellers.routes.js";
 import { catalogRouter } from "./modules/catalog/catalog.routes.js";
+import { messagesRouter } from "./modules/messages/messages.routes.js";
 import { adminRouter } from "./modules/admin/admin.routes.js";
 
 export function createApp() {
@@ -19,6 +20,7 @@ export function createApp() {
   app.use("/api", uploadsRouter);
   app.use("/api", sellersRouter);
   app.use("/api", catalogRouter);
+  app.use("/api", messagesRouter);
   app.use("/api", adminRouter);
 
   app.use((req, res) => res.status(404).json({ ok: false, error: "NOT_FOUND" }));
