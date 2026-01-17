@@ -20,6 +20,7 @@ export default function HomePage() {
   const [catMap, setCatMap] = useState({});
   const [err, setErr] = useState("");
   const [filters, setFilters] = useState({});
+  const [filterOpen, setFilterOpen] = useState(false);
 
   async function load(nextFilters = filters) {
     setErr("");
@@ -54,15 +55,24 @@ export default function HomePage() {
 
   return (
     <div>
+      <FilterBar
+        open={filterOpen}
+        onClose={() => setFilterOpen(false)}
+        onApply={(f) => { setFilters(f); load(f); }}
+        onReset={() => { setFilters({}); load({}); }}
+      />
+
       <div className="row" style={{ marginBottom: 14 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 24 }}>آخر الإعلانات</h1>
           <div className="muted">واجهة مرتّبة ومريحة.</div>
         </div>
-        <Link className="btn btn-primary" href="/post">+ إضافة إعلان</Link>
-      </div>
 
-      <FilterBar onChange={(f) => { setFilters(f); load(f); }} />
+        <div style={{ display:"flex", gap:10 }}>
+          <button className="btn" onClick={() => setFilterOpen(true)}>فلتر</button>
+          <Link className="btn btn-primary" href="/post">+ إضافة إعلان</Link>
+        </div>
+      </div>
 
       {err ? <div className="card"><div className="card-body">Error: {err}</div></div> : null}
 
