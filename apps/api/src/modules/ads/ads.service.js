@@ -1,18 +1,22 @@
 import fs from "fs/promises";
 import path from "path";
 import { pool } from "../../db/pool.js";
+import { getOrCreateSellerByGuestId } from "../sellers/sellers.service.js";
 
 function getUploadsDir() {
   return process.env.UPLOADS_DIR || "/var/www/souq/uploads";
 }
 
 export async function createAd(ad, sellerGuestId) {
+  const seller = await getOrCreateSellerByGuestId(sellerGuestId);
+
   const sql = `
     INSERT INTO ads
-      (title, description, price, currency, phone_e164, province,
-       category_key, subcategory_key, deal_type, car_year, images, seller_guest_id)
+      (title, description, price, currency, phone_e164, whatsapp_e164, province,
+       category_key, subcategory_key, deal_type, car_year, images,
+       seller_guest_id, seller_id)
     VALUES
-      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12)
+      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14)
     RETURNING id
   `;
 
@@ -21,7 +25,8 @@ export async function createAd(ad, sellerGuestId) {
     ad.description,
     ad.price,
     ad.currency,
-    ad.phone_e164,
+    null,
+    ad.whatsapp_e164 ?? null,
     ad.province,
     ad.category_key,
     ad.subcategory_key,
@@ -29,6 +34,7 @@ export async function createAd(ad, sellerGuestId) {
     ad.car_year ?? null,
     JSON.stringify(ad.images || []),
     sellerGuestId,
+    seller.id,
   ];
 
   const r = await pool.query(sql, params);
@@ -37,11 +43,15 @@ export async function createAd(ad, sellerGuestId) {
 
 export async function getAdById(id) {
   const r = await pool.query(
-    `SELECT id, title, description, price, currency, phone_e164, province,
-            category_key, subcategory_key, deal_type, car_year, images,
-            favorites_count, views_count, created_at, seller_guest_id
-     FROM ads
-     WHERE id = $1
+    `SELECT a.id, a.title, a.description, a.price, a.currency,
+            a.whatsapp_e164, a.province,
+            a.category_key, a.subcategory_key, a.deal_type, a.car_year, a.images,
+            a.favorites_count, a.views_count, a.created_at,
+            a.seller_id,
+            COALESCE(s.company_name, s.display_name, 'Seller') AS seller_name
+     FROM ads a
+     LEFT JOIN sellers s ON s.id = a.seller_id
+     WHERE a.id = $1
      LIMIT 1`,
     [id]
   );
@@ -60,30 +70,33 @@ export async function listAds(f) {
   };
 
   if (f.query) {
-    where.push(`(title ILIKE '%' || $${i} || '%' OR description ILIKE '%' || $${i} || '%')`);
+    where.push(`(a.title ILIKE '%' || $${i} || '%' OR a.description ILIKE '%' || $${i} || '%')`);
     params.push(f.query);
     i += 1;
   }
 
-  if (f.province) add(`province = ?`, f.province);
-  if (f.category_key) add(`category_key = ?`, f.category_key);
-  if (f.subcategory_key) add(`subcategory_key = ?`, f.subcategory_key);
-  if (f.deal_type) add(`deal_type = ?`, f.deal_type);
+  if (f.province) add(`a.province = ?`, f.province);
+  if (f.category_key) add(`a.category_key = ?`, f.category_key);
+  if (f.subcategory_key) add(`a.subcategory_key = ?`, f.subcategory_key);
+  if (f.deal_type) add(`a.deal_type = ?`, f.deal_type);
 
-  if (f.price_min) add(`price >= ?`, Number(f.price_min));
-  if (f.price_max) add(`price <= ?`, Number(f.price_max));
+  if (f.price_min) add(`a.price >= ?`, Number(f.price_min));
+  if (f.price_max) add(`a.price <= ?`, Number(f.price_max));
 
-  if (f.car_year_min) add(`car_year >= ?`, Number(f.car_year_min));
-  if (f.car_year_max) add(`car_year <= ?`, Number(f.car_year_max));
+  if (f.car_year_min) add(`a.car_year >= ?`, Number(f.car_year_min));
+  if (f.car_year_max) add(`a.car_year <= ?`, Number(f.car_year_max));
 
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
   const sql = `
-    SELECT id, title, price, currency, province, category_key, subcategory_key,
-           deal_type, car_year, images, favorites_count, views_count, created_at
-    FROM ads
+    SELECT a.id, a.title, a.price, a.currency, a.province, a.category_key, a.subcategory_key,
+           a.deal_type, a.car_year, a.images, a.favorites_count, a.views_count, a.created_at,
+           a.seller_id,
+           COALESCE(s.company_name, s.display_name, 'Seller') AS seller_name
+    FROM ads a
+    LEFT JOIN sellers s ON s.id = a.seller_id
     ${whereSql}
-    ORDER BY created_at DESC
+    ORDER BY a.created_at DESC
     LIMIT $${i} OFFSET $${i + 1}
   `;
 
@@ -115,11 +128,9 @@ export async function deleteAd({ adId, guestId, admin }) {
       return { ok: false, error: "FORBIDDEN" };
     }
 
-    // delete row (cascades favorites/views tables)
     await client.query("DELETE FROM ads WHERE id=$1", [adId]);
     await client.query("COMMIT");
 
-    // delete images directory from disk
     const dir = path.join(getUploadsDir(), "ads", String(adId));
     await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
     return { ok: true };
