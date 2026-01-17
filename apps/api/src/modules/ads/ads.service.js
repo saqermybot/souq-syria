@@ -48,7 +48,8 @@ export async function getAdById(id) {
             a.category_key, a.subcategory_key, a.deal_type, a.car_year, a.images,
             a.favorites_count, a.views_count, a.created_at,
             a.seller_id,
-            COALESCE(s.company_name, s.display_name, 'Seller') AS seller_name
+            COALESCE(s.company_name, s.display_name, 'Seller') AS seller_name,
+            COALESCE(s.is_verified,false) AS seller_is_verified
      FROM ads a
      LEFT JOIN sellers s ON s.id = a.seller_id
      WHERE a.id = $1

@@ -109,7 +109,7 @@ export default function AdDetails({ params }) {
           <div className="card" style={{ background:"rgba(255,255,255,.03)", borderColor:"rgba(255,255,255,.07)", boxShadow:"none" }}>
             <div className="card-body" style={{ display:"flex", justifyContent:"space-between", gap:10 }}>
               <div>
-                <div style={{ fontWeight: 800, marginBottom: 4 }}>البائع</div>
+                <div style={{ fontWeight: 800, marginBottom: 4 }}>البائع {item.seller_is_verified ? "✅ موثق" : ""}</div>
                 {sellerLink ? (
                   <Link href={sellerLink} className="muted" style={{ textDecoration:"underline" }}>
                     عرض صفحة البائع
