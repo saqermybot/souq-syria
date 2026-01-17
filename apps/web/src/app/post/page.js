@@ -1,5 +1,6 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import WhatsAppInput from "@/components/WhatsAppInput";
 import { apiPost, apiPostForm } from "@/lib/api";
 
 const CATALOG = [
@@ -23,14 +24,21 @@ export default function PostAd() {
     price: "1",
     currency: "SYP",
     province: "حلب",
-    phone_e164: "+963",
     car_year: "",
   });
+
+  const [whatsappE164, setWhatsappE164] = useState(undefined);
   const [files, setFiles] = useState([]);
   const [busy, setBusy] = useState(false);
 
   const cat = useMemo(() => CATALOG.find(c=>c.key===form.category_key), [form.category_key]);
   const subs = cat?.subs || [];
+
+  useEffect(() => {
+    if (!subs.find(s=>s.key===form.subcategory_key)) {
+      setForm(f => ({...f, subcategory_key: subs[0]?.key || "other"}));
+    }
+  }, [form.category_key]);
 
   function set(k,v){ setForm(f=>({...f,[k]:v})); }
 
@@ -42,13 +50,13 @@ export default function PostAd() {
         description: form.description,
         price: Number(form.price || 0),
         currency: form.currency,
-        phone_e164: form.phone_e164,
         province: form.province,
         category_key: form.category_key,
         subcategory_key: form.subcategory_key,
         deal_type: form.deal_type,
         car_year: form.category_key==="cars" && form.car_year ? Number(form.car_year) : null,
         images: [],
+        whatsapp_e164: whatsappE164 || undefined
       };
 
       const created = await apiPost("/api/ads", body);
@@ -72,7 +80,7 @@ export default function PostAd() {
     <div className="card">
       <div className="card-body">
         <h1 style={{margin:"0 0 8px"}}>إضافة إعلان</h1>
-        <div className="muted">نموذج صغير ومنضبط.</div>
+        <div className="muted">واتساب اختياري، والرسائل افتراضية.</div>
 
         <div className="hr" />
 
@@ -126,8 +134,8 @@ export default function PostAd() {
         <input className="input" value={form.province} onChange={e=>set("province", e.target.value)} />
 
         <div style={{height:10}} />
-        <label className="muted">الهاتف (E.164)</label>
-        <input className="input" value={form.phone_e164} onChange={e=>set("phone_e164", e.target.value)} placeholder="+963..." />
+        <label className="muted">واتساب (اختياري)</label>
+        <WhatsAppInput valueE164={whatsappE164} onChangeE164={setWhatsappE164} />
 
         <div style={{height:10}} />
         <label className="muted">الصور (حتى 5)</label>

@@ -1,3 +1,5 @@
+import "react-international-phone/style.css";
+import "react-international-phone/style.css";
 import "../styles/globals.css";
 import Header from "@/components/Header";
 
