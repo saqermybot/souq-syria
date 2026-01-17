@@ -114,7 +114,7 @@ export default function PostStepDetails() {
       } catch (e) {
         // rollback: delete ad so we never keep ad without images
         try { await apiDelete(`/api/ad/${id}`); } catch {}
-        alert("فشل رفع الصور، لم يتم نشر الإعلان.");
+        alert("فشل رفع الصور: " + (e?.message || e) + "\nلم يتم نشر الإعلان.");
         return;
       }
 

@@ -60,13 +60,8 @@ export async function getDraftTitle() {
   return (v || "").toString();
 }
 
-export async function saveDraftImages(fileList) {
-  const files = Array.from(fileList || []).slice(0, 5);
-  const items = [];
-  for (const f of files) {
-    const blob = new Blob([await f.arrayBuffer()], { type: f.type || "application/octet-stream" });
-    items.push({ name: f.name || "image", type: f.type || "image/jpeg", blob });
-  }
+// items: [{name,type,blob}]
+export async function saveDraftImagesItems(items) {
   await setItem(KEY_IMAGES, items);
 }
 
