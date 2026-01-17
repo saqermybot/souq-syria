@@ -91,7 +91,25 @@ export const categories = [
       { key: "living", label_ar: "طقم جلوس", label_en: "Living sets" },
       { key: "kitchen", label_ar: "مطبخ", label_en: "Kitchen" },
       { key: "dining", label_ar: "طاولة طعام", label_en: "Dining table" },
+  {
+    key: "pets",
+    label_ar: "حيوانات أليفة",
+    label_en: "Pets",
+    subcategories: [
+      { key: "dogs", label_ar: "كلاب", label_en: "Dogs" },
+      { key: "cats", label_ar: "قطط", label_en: "Cats" },
+      { key: "birds", label_ar: "طيور", label_en: "Birds" },
       { key: "other", label_ar: "أخرى", label_en: "Other" },
+    ],
+    deal_types_required: true,
+    deal_types: [
+      { key: "sale", label_ar: "بيع", label_en: "Sale" },
+      { key: "wanted", label_ar: "شراء", label_en: "Wanted" },
+    ],
+    fields: [],
+  },
+
+      { key: "other", label_ar: "متفرقات", label_en: "Other" },
     ],
     deal_types_required: true,
     deal_types: [
