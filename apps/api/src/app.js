@@ -21,22 +21,27 @@ export function createApp() {
 
   app.use((req, res) => res.status(404).json({ ok: false, error: "NOT_FOUND" }));
 
-  // Robust global error handler (never throws)
+  // Robust error handler (never throws)
   app.use((err, req, res, next) => {
-    const msg = err?.message || "INTERNAL_ERROR";
-    const code = err?.code;
+    const msg = err?.message ? String(err.message) : "INTERNAL_ERROR";
+    const code = err?.code ? String(err.code) : "";
 
     // Multer errors
     if (code === "LIMIT_FILE_SIZE") return res.status(400).json({ ok: false, error: "FILE_TOO_LARGE" });
     if (code === "LIMIT_FILE_COUNT") return res.status(400).json({ ok: false, error: "TOO_MANY_FILES" });
 
-    // Custom upload errors
+    // Upload errors
     if (msg === "BAD_IMAGE_TYPE") return res.status(400).json({ ok: false, error: "BAD_IMAGE_TYPE" });
     if (msg === "BAD_IMAGE_PROCESS") return res.status(400).json({ ok: false, error: "BAD_IMAGE_PROCESS" });
 
+    // Validation-style messages
+    if (msg.startsWith("BAD_") || msg.startsWith("MISSING_")) {
+      return res.status(400).json({ ok: false, error: msg });
+    }
+
     // Safe logging
     try {
-      console.error("UNHANDLED_ERROR:", err?.stack || String(err));
+      console.error("UNHANDLED_ERROR:", err?.stack ? err.stack : String(err));
     } catch {
       console.error("UNHANDLED_ERROR: <unprintable>");
     }
