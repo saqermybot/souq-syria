@@ -1,14 +1,20 @@
 import { z } from "zod";
-import { categories } from "@souq/shared";
+import { categories, provinces } from "@souq/shared";
 
 function findCategory(key) {
   return categories.find((c) => c.key === key) || null;
 }
-function hasSubcategory(cat, subkey) {
-  return !!cat.subcategories?.find((s) => s.key === subkey);
+
+function findSubcategory(cat, subkey) {
+  return cat.subcategories?.find((s) => s.key === subkey) || null;
 }
+
 function hasDealType(cat, dealType) {
   return !!cat.deal_types?.find((d) => d.key === dealType);
+}
+
+function getField(cat, key) {
+  return (cat.fields || []).find((f) => f.key === key) || null;
 }
 
 export function validateAdId(id) {
@@ -18,6 +24,7 @@ export function validateAdId(id) {
 }
 
 export function validateListAdsQuery(q) {
+  // ALL OPTIONAL (filters) – must match catalog keys, but not required
   const schema = z.object({
     query: z.string().optional(),
     province: z.string().optional(),
@@ -40,6 +47,11 @@ export function validateListAdsQuery(q) {
 }
 
 export function validateCreateAd(body) {
+  const e164Optional = z
+    .string()
+    .regex(/^\+[1-9]\d{6,14}$/, "BAD_WHATSAPP")
+    .optional();
+
   const base = z.object({
     title: z.string().min(2).max(120),
     description: z.string().min(2).max(4000),
@@ -47,34 +59,63 @@ export function validateCreateAd(body) {
     price: z.number().finite().nonnegative(),
     currency: z.string().min(1).max(8).default("SYP"),
 
-    phone_e164: z.string().regex(/^\+[1-9]\d{6,14}$/, "PHONE_E164_REQUIRED"),
+    // WhatsApp optional
+    whatsapp_e164: e164Optional,
+
+    // Province required
     province: z.string().min(2).max(50),
 
     category_key: z.string().min(1),
     subcategory_key: z.string().min(1),
 
-    deal_type: z.string().min(1).default("sale"),
+    // Deal type required (we enforce using catalog)
+    deal_type: z.string().min(1),
 
+    // Cars fields
     car_year: z.number().int().nullable().optional(),
+    car_model: z.string().max(60).optional(),
 
-    images: z.array(z.string().url()).max(3).default([]),
+    images: z.array(z.string().url()).max(5).default([]),
   });
 
   const parsed = base.parse(body);
 
-  const cat = findCategory(parsed.category_key);
-  if (!cat) return { ok: false, error: "BAD_CATEGORY" };
-  if (!hasSubcategory(cat, parsed.subcategory_key)) return { ok: false, error: "BAD_SUBCATEGORY" };
-  if (!hasDealType(cat, parsed.deal_type)) return { ok: false, error: "BAD_DEAL_TYPE" };
-
-  if (parsed.category_key !== "cars" && parsed.car_year != null) {
-    return { ok: false, error: "FIELD_NOT_ALLOWED" };
+  // Province must be in catalog list
+  if (!provinces.includes(parsed.province)) {
+    return { ok: false, error: "BAD_PROVINCE" };
   }
 
-  if (parsed.category_key === "cars" && parsed.car_year != null) {
-    const yearField = (cat.fields || []).find((f) => f.key === "car_year");
-    if (yearField?.min && parsed.car_year < yearField.min) return { ok: false, error: "BAD_CAR_YEAR" };
-    if (yearField?.max && parsed.car_year > yearField.max) return { ok: false, error: "BAD_CAR_YEAR" };
+  const cat = findCategory(parsed.category_key);
+  if (!cat) return { ok: false, error: "BAD_CATEGORY" };
+
+  const sub = findSubcategory(cat, parsed.subcategory_key);
+  if (!sub) return { ok: false, error: "BAD_SUBCATEGORY" };
+
+  // Deal type required & allowed
+  if (cat.deal_types_required && !parsed.deal_type) {
+    return { ok: false, error: "MISSING_DEAL_TYPE" };
+  }
+  if (parsed.deal_type && !hasDealType(cat, parsed.deal_type)) {
+    return { ok: false, error: "BAD_DEAL_TYPE" };
+  }
+
+  // Cars: car_year rule B (required only for specific subcategories)
+  const yearField = getField(cat, "car_year");
+  if (yearField) {
+    const requiredSubs = yearField.required_if_subcategory_in || [];
+    const mustHaveYear = requiredSubs.includes(parsed.subcategory_key);
+
+    if (mustHaveYear && (parsed.car_year === null || parsed.car_year === undefined)) {
+      return { ok: false, error: "MISSING_CAR_YEAR" };
+    }
+
+    if (parsed.car_year != null) {
+      if (typeof yearField.min === "number" && parsed.car_year < yearField.min) return { ok: false, error: "BAD_CAR_YEAR" };
+      if (typeof yearField.max === "number" && parsed.car_year > yearField.max) return { ok: false, error: "BAD_CAR_YEAR" };
+    }
+  } else {
+    // If category has no car_year field, reject any provided year
+    if (parsed.car_year != null) return { ok: false, error: "FIELD_NOT_ALLOWED" };
   }
 
   return { ok: true, value: parsed };
