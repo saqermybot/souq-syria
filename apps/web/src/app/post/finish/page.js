@@ -1,9 +1,12 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import WhatsAppInput from "@/components/WhatsAppInput";
 import { apiGet, apiPost, apiPostForm, apiDelete } from "@/lib/api";
 import { clearDraftText, loadDraftText, saveDraftText } from "@/lib/draftText";
+
+import FinishSelectors from "@/components/post/FinishSelectors";
+import FinishPricing from "@/components/post/FinishPricing";
+import FinishImages from "@/components/post/FinishImages";
 
 async function convertToWebP(file) {
   const url = URL.createObjectURL(file);
@@ -119,7 +122,7 @@ export default function PostFinish() {
     let id = null;
 
     try {
-      // حفظ واتساب/السعر/المحافظة في draft قبل النشر
+      // حفظ بيانات step2 في draft (للعودة)
       saveDraftText({
         ...loadDraftText(),
         province: form.province,
@@ -186,70 +189,33 @@ export default function PostFinish() {
         <div className="muted">الخطوة 2/2: التفاصيل + تواصل + صور.</div>
         <div className="hr" />
 
-        <div className="row">
-          <div style={{flex:1}}>
-            <label className="muted">النوع *</label>
-            <select className="select" value={form.subcategory_key} onChange={(e)=>set("subcategory_key", e.target.value)}>
-              {subcategories.map(s => <option key={s.key} value={s.key}>{s.label_ar}</option>)}
-            </select>
-          </div>
-          <div style={{flex:1}}>
-            <label className="muted">بيع/إيجار *</label>
-            <select className="select" value={form.deal_type} onChange={(e)=>set("deal_type", e.target.value)}>
-              {dealTypes.map(d => <option key={d.key} value={d.key}>{d.label_ar}</option>)}
-            </select>
-          </div>
-        </div>
-
-        {carYearField ? (
-          <div className="row">
-            <div style={{flex:1}}>
-              <label className="muted">سنة الصنع {carYearRequired ? "*" : ""}</label>
-              <select className="select" value={form.car_year} onChange={(e)=>set("car_year", e.target.value)}>
-                <option value="">اختر</option>
-                {carYears.map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
-            </div>
-            <div style={{flex:1}}>
-              <label className="muted">موديل (اختياري)</label>
-              <input className="input" value={form.car_model} onChange={(e)=>set("car_model", e.target.value)} />
-            </div>
-          </div>
-        ) : null}
-
-        <div className="row">
-          <div style={{flex:1}}>
-            <label className="muted">المحافظة *</label>
-            <select className="select" value={form.province} onChange={(e)=>set("province", e.target.value)}>
-              <option value="">اختر</option>
-              {provinces.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>
-          <div style={{flex:1}}>
-            <label className="muted">السعر *</label>
-            <div className="row">
-              <input className="input" style={{flex:1}} value={form.price} onChange={(e)=>set("price", e.target.value)} />
-              <div style={{width:140}}>
-                <select className="select" value={form.currency} onChange={(e)=>set("currency", e.target.value)}>
-                  <option value="SYP">SYP</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <label className="muted">واتساب (اختياري)</label>
-        <WhatsAppInput valueE164={whatsappE164} onChangeE164={setWhatsappE164} />
+        <FinishSelectors
+          subcategories={subcategories}
+          dealTypes={dealTypes}
+          carYearField={carYearField}
+          carYearRequired={carYearRequired}
+          carYears={carYears}
+          form={form}
+          set={set}
+        />
 
         <div className="hr" />
-        <label className="muted">الصور * (1 إلى 5)</label>
-        <input className="input" type="file" accept="image/*" multiple onChange={(e)=>setFiles(Array.from(e.target.files||[]).slice(0,5))} />
-        <div className="muted" style={{ marginTop: 6 }}>المختار: {files.length}</div>
 
-        <div className="hr" />
-        <button className="btn btn-primary" disabled={busy} onClick={publish}>
-          {busy ? (status || "...") : "نشر الإعلان"}
-        </button>
+        <FinishPricing
+          provinces={provinces}
+          form={form}
+          set={set}
+          whatsappE164={whatsappE164}
+          setWhatsappE164={setWhatsappE164}
+        />
+
+        <FinishImages
+          files={files}
+          setFiles={setFiles}
+          busy={busy}
+          status={status}
+          onPublish={publish}
+        />
       </div>
     </div>
   );
