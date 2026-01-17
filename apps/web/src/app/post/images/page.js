@@ -7,12 +7,18 @@ export default function PostStepImages() {
   const [files, setFiles] = useState([]);
 
   async function next() {
-    const title = await getDraftTitle();
-    if (!title) { window.location.href = "/post"; return; }
+    try {
+      const title = await getDraftTitle();
+      if (!title) { window.location.href = "/post"; return; }
 
-    if (!files.length) return alert("اختر على الأقل صورة واحدة");
-    await saveDraftImages(files);
-    window.location.href = "/post/details";
+      if (!files.length) return alert("اختر على الأقل صورة واحدة");
+      await saveDraftImages(files);
+
+      window.location.href = "/post/details";
+    } catch (e) {
+      // Most common on iPhone: Private mode blocks IndexedDB
+      alert("متصفحك يمنع حفظ الصور بين الصفحات (غالبًا لأنك في Private). افتح الموقع بتبويب عادي ثم جرّب مرة أخرى.");
+    }
   }
 
   return (
