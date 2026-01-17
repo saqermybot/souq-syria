@@ -3,6 +3,8 @@ import { adsRouter } from "./modules/ads/ads.routes.js";
 import { viewsRouter } from "./modules/views/views.routes.js";
 import { favoritesRouter } from "./modules/favorites/favorites.routes.js";
 import { uploadsRouter } from "./modules/uploads/uploads.routes.js";
+import { sellersRouter } from "./modules/sellers/sellers.routes.js";
+import { catalogRouter } from "./modules/catalog/catalog.routes.js";
 
 export function createApp() {
   const app = express();
@@ -14,12 +16,32 @@ export function createApp() {
   app.use("/api", viewsRouter);
   app.use("/api", favoritesRouter);
   app.use("/api", uploadsRouter);
+  app.use("/api", sellersRouter);
+  app.use("/api", catalogRouter);
 
   app.use((req, res) => res.status(404).json({ ok: false, error: "NOT_FOUND" }));
 
+  // Robust global error handler (never throws)
   app.use((err, req, res, next) => {
-    console.error("UNHANDLED_ERROR:", err?.message || err, err);
-    res.status(500).json({ ok: false, error: "INTERNAL_ERROR" });
+    const msg = err?.message || "INTERNAL_ERROR";
+    const code = err?.code;
+
+    // Multer errors
+    if (code === "LIMIT_FILE_SIZE") return res.status(400).json({ ok: false, error: "FILE_TOO_LARGE" });
+    if (code === "LIMIT_FILE_COUNT") return res.status(400).json({ ok: false, error: "TOO_MANY_FILES" });
+
+    // Custom upload errors
+    if (msg === "BAD_IMAGE_TYPE") return res.status(400).json({ ok: false, error: "BAD_IMAGE_TYPE" });
+    if (msg === "BAD_IMAGE_PROCESS") return res.status(400).json({ ok: false, error: "BAD_IMAGE_PROCESS" });
+
+    // Safe logging
+    try {
+      console.error("UNHANDLED_ERROR:", err?.stack || String(err));
+    } catch {
+      console.error("UNHANDLED_ERROR: <unprintable>");
+    }
+
+    return res.status(500).json({ ok: false, error: "INTERNAL_ERROR" });
   });
 
   return app;
