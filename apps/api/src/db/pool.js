@@ -1,4 +1,11 @@
 import pg from "pg";
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
+
+// Load apps/api/.env BEFORE reading env vars (guaranteed)
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, "../../.env") });
 
 function must(v, name) {
   if (!v) throw new Error(`MISSING_${name}`);
