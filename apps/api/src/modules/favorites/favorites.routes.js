@@ -8,7 +8,6 @@ function getGuestId(req) {
   return (req.headers["x-guest-id"] || "").toString().trim();
 }
 
-// POST /api/ad/:id/favorite (toggle)
 favoritesRouter.post("/ad/:id/favorite", async (req, res, next) => {
   try {
     const v = validateAdId(req.params.id);
@@ -26,7 +25,6 @@ favoritesRouter.post("/ad/:id/favorite", async (req, res, next) => {
   }
 });
 
-// GET /api/me/favorites (full cards)
 favoritesRouter.get("/me/favorites", async (req, res, next) => {
   try {
     const guestId = getGuestId(req);
@@ -42,7 +40,6 @@ favoritesRouter.get("/me/favorites", async (req, res, next) => {
   }
 });
 
-// GET /api/me/favorites-ids (lightweight)
 favoritesRouter.get("/me/favorites-ids", async (req, res, next) => {
   try {
     const guestId = getGuestId(req);
