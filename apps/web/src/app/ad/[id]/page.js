@@ -1,15 +1,12 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { apiGet, apiPost, apiDelete } from "@/lib/api";
-
-function waLink(e164) {
-  const digits = (e164 || "").replace(/\D/g, "");
-  return digits ? `https://wa.me/${digits}` : "";
-}
+import { formatPrice } from "@/lib/format";
 
 export default function AdDetails({ params }) {
   const id = params.id;
+
   const [item, setItem] = useState(null);
   const [err, setErr] = useState("");
   const [expanded, setExpanded] = useState(false);
@@ -29,12 +26,7 @@ export default function AdDetails({ params }) {
   }
 
   async function toggleFav() {
-    try {
-      await apiPost(`/api/ad/${id}/favorite`, {});
-      await load();
-    } catch (e) {
-      alert(e.message);
-    }
+    try { await apiPost(`/api/ad/${id}/favorite`, {}); await load(); } catch (e) { alert(e.message); }
   }
 
   async function del() {
@@ -44,29 +36,22 @@ export default function AdDetails({ params }) {
 
   useEffect(() => { load(); registerView(); }, [id]);
 
-  const images = item?.images || [];
+  if (err) return <div className="card"><div className="card-body">Error: {err}</div></div>;
+  if (!item) return <div className="card"><div className="card-body">Loading...</div></div>;
+
+  const images = item.images || [];
   const mainImg = images[0] || "";
-  const favoritesCount = item?.favorites_count || 0;
-
-  // NOTE: liked state per-user on details will be added after we expose ids here too.
-  // For now, bubble shows count and acts as toggle; visual "on" can be added later.
-  const favOn = false;
-
-  const sellerId = item?.seller_id || "";
+  const sellerId = item.seller_id || "";
   const sellerLink = sellerId ? `/seller/${sellerId}` : "";
   const messageLink = sellerId ? `/messages?ad=${id}&seller=${sellerId}` : `/messages?ad=${id}`;
 
-  const showWhatsApp = !!item?.whatsapp_e164;
-  const whatsappUrl = waLink(item?.whatsapp_e164);
-
-  if (err) return <div className="card"><div className="card-body">Error: {err}</div></div>;
-  if (!item) return <div className="card"><div className="card-body">Loading...</div></div>;
+  const favCount = item.favorites_count || 0;
 
   return (
     <div>
       <div className="row" style={{ marginBottom: 12 }}>
         <Link className="btn" href="/">← رجوع</Link>
-        <div style={{ display:"flex", gap:10 }}>
+        <div style={{ display: "flex", gap: 10 }}>
           <Link className="btn" href={messageLink}>💬 رسالة</Link>
           <button className="btn" onClick={del} style={{ borderColor:"rgba(255,90,90,.5)" }}>🗑 حذف</button>
         </div>
@@ -76,20 +61,19 @@ export default function AdDetails({ params }) {
         {/* Image */}
         {mainImg ? (
           <div style={{ position:"relative" }}>
-            <img src={mainImg} alt={item.title} style={{ width:"100%", maxHeight: 440, objectFit:"cover", display:"block" }} />
+            <img src={mainImg} alt={item.title} style={{ width:"100%", maxHeight: 420, objectFit:"cover", display:"block" }} />
 
-            {/* Favorite bubble on image (royal blue glass) */}
+            {/* Favorite bubble on image */}
             <button
-              className={`fav-bubble ${favOn ? "on" : ""}`}
+              className="fav-bubble"
               style={{ position:"absolute", top:12, right:12 }}
               onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); toggleFav(); }}
               title="Favorite"
             >
-              <span className="fav-icon">{favOn ? "♥" : "♡"}</span>
-              <span className="fav-count">{favoritesCount}</span>
+              <span className="fav-icon">♡</span>
+              <span className="fav-count">{favCount}</span>
             </button>
 
-            {/* counter 1/N (simple v1) */}
             {images.length > 1 ? (
               <div style={{
                 position:"absolute", left:12, bottom:12,
@@ -106,20 +90,22 @@ export default function AdDetails({ params }) {
 
         <div className="card-body">
           {/* Title */}
-          <h1 style={{ margin: "0 0 6px", fontSize: 26 }}>{item.title}</h1>
-          <div className="muted">{item.province} • {item.deal_type}</div>
+          <h1 style={{ margin: "0 0 6px", fontSize: 22, fontWeight: 900 }}>{item.title}</h1>
+          <div className="muted" style={{ fontSize: 13 }}>{item.province} • {item.deal_type}</div>
 
           <div className="hr" />
 
           {/* Price + stats */}
           <div className="row">
-            <div style={{ fontWeight: 900, fontSize: 20 }}>{item.price} {item.currency}</div>
-            <div className="muted">👁 {item.views_count} • ❤️ {item.favorites_count}</div>
+            <div style={{ fontWeight: 900, fontSize: 18 }}>
+              {formatPrice(item.price, item.currency)}
+            </div>
+            <div className="muted" style={{ fontSize: 12 }}>👁 {item.views_count} • ❤️ {item.favorites_count}</div>
           </div>
 
           <div className="hr" />
 
-          {/* Seller snippet */}
+          {/* Seller + actions */}
           <div className="card" style={{ background:"rgba(255,255,255,.03)", borderColor:"rgba(255,255,255,.07)", boxShadow:"none" }}>
             <div className="card-body" style={{ display:"flex", justifyContent:"space-between", gap:10 }}>
               <div>
@@ -128,21 +114,14 @@ export default function AdDetails({ params }) {
                   <Link href={sellerLink} className="muted" style={{ textDecoration:"underline" }}>
                     عرض صفحة البائع
                   </Link>
-                ) : (
-                  <div className="muted">—</div>
-                )}
-                <div className="muted" style={{ marginTop: 6 }}>
+                ) : <div className="muted">—</div>}
+                <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>
                   تاريخ الإعلان: {new Date(item.created_at).toLocaleDateString("ar")}
                 </div>
               </div>
 
               <div style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
                 <Link className="btn" href={messageLink}>💬 رسالة</Link>
-                {showWhatsApp ? (
-                  <a className="btn btn-primary" href={whatsappUrl} target="_blank" rel="noreferrer">
-                    WhatsApp
-                  </a>
-                ) : null}
               </div>
             </div>
           </div>
@@ -152,6 +131,7 @@ export default function AdDetails({ params }) {
           {/* Description: 2 lines + read more */}
           <div>
             <div style={{ fontWeight: 800, marginBottom: 6 }}>الوصف</div>
+
             <div
               style={{
                 whiteSpace: "pre-wrap",
@@ -169,18 +149,6 @@ export default function AdDetails({ params }) {
                 {expanded ? "إخفاء" : "قراءة المزيد"}
               </button>
             ) : null}
-          </div>
-
-          <div className="hr" />
-
-          {/* Seller trust panel (v1 placeholder) */}
-          <div className="card" style={{ background:"rgba(255,255,255,.03)", borderColor:"rgba(255,255,255,.07)", boxShadow:"none" }}>
-            <div className="card-body">
-              <div style={{ fontWeight: 800, marginBottom: 8 }}>معلومات عن البائع</div>
-              <div className="muted">التقييمات: قريبًا</div>
-              <div className="muted">تاريخ الانضمام: قريبًا</div>
-              {sellerLink ? <Link className="btn" href={sellerLink} style={{ marginTop: 10 }}>كل الإعلانات</Link> : null}
-            </div>
           </div>
         </div>
       </div>
