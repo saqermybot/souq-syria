@@ -1,12 +1,13 @@
 /**
  * Single Source of Truth (Locked)
- * - Categories/Subcategories
- * - Required fields per category
- * - Allowed deal types per category
+ * CATALOG_VERSION 3
+ * - Categories/Subcategories (AR/EN)
+ * - Deal types per category (required)
  * - Provinces list (Syria v1)
+ * - Cars: car_year required except parts/accessories
  */
 
-export const CATALOG_VERSION = 2;
+export const CATALOG_VERSION = 3;
 
 export const provinces = [
   "حلب","دمشق","ريف دمشق","حمص","حماة","اللاذقية","طرطوس","إدلب","دير الزور",
@@ -20,47 +21,17 @@ export const FieldType = {
 };
 
 export const categories = [
-  {
-    key: "cars",
-    label_ar: "سيارات",
-    label_en: "Cars",
-    subcategories: [
-      { key: "sedan", label_ar: "سيدان", label_en: "Sedan" },
-      { key: "suv", label_ar: "SUV", label_en: "SUV" },
-      { key: "pickup", label_ar: "بيك أب", label_en: "Pickup" },
-      { key: "van", label_ar: "فان", label_en: "Van" },
-      { key: "motorcycle", label_ar: "دراجات", label_en: "Motorcycles" },
-      { key: "parts", label_ar: "قطع سيارات", label_en: "Parts" },
-      { key: "other", label_ar: "أخرى", label_en: "Other" },
-    ],
-    deal_types_required: true,
-    deal_types: [
-      { key: "sale", label_ar: "بيع", label_en: "Sale" },
-      { key: "wanted", label_ar: "شراء", label_en: "Wanted" },
-    ],
-    fields: [
-      {
-        key: "car_year",
-        label_ar: "سنة الصنع",
-        label_en: "Year",
-        type: FieldType.NUMBER,
-        required: true,
-        min: 2000,
-        max: 2026,
-      },
-    ],
-  },
-
+  // 1) Real estate
   {
     key: "real_estate",
     label_ar: "عقارات",
     label_en: "Real Estate",
     subcategories: [
       { key: "apartment", label_ar: "شقة", label_en: "Apartment" },
-      { key: "house", label_ar: "بيت", label_en: "House" },
+      { key: "free_house", label_ar: "بيت حر", label_en: "Detached House" },
       { key: "land", label_ar: "أرض", label_en: "Land" },
-      { key: "commercial", label_ar: "تجاري", label_en: "Commercial" },
-      { key: "other", label_ar: "أخرى", label_en: "Other" },
+      { key: "shop", label_ar: "محل", label_en: "Shop" },
+      { key: "warehouse", label_ar: "مستودع", label_en: "Warehouse" },
     ],
     deal_types_required: true,
     deal_types: [
@@ -70,14 +41,56 @@ export const categories = [
     fields: [],
   },
 
+  // 2) Cars
   {
-    key: "mobiles",
-    label_ar: "موبايلات",
-    label_en: "Mobiles",
+    key: "cars",
+    label_ar: "سيارات",
+    label_en: "Cars",
     subcategories: [
-      { key: "iphone", label_ar: "آيفون", label_en: "iPhone" },
-      { key: "android", label_ar: "أندرويد", label_en: "Android" },
-      { key: "accessories", label_ar: "اكسسوارات", label_en: "Accessories" },
+      { key: "passenger", label_ar: "سياحية", label_en: "Passenger" },
+      { key: "taxi", label_ar: "تكسي عمومي", label_en: "Taxi" },
+      { key: "van", label_ar: "فان", label_en: "Van" },
+      { key: "truck", label_ar: "شاحنة", label_en: "Truck" },
+      { key: "parts_accessories", label_ar: "قطع وإكسسوارات", label_en: "Parts & Accessories" },
+    ],
+    deal_types_required: true,
+    deal_types: [
+      { key: "sale", label_ar: "بيع", label_en: "Sale" },
+      { key: "rent", label_ar: "إيجار", label_en: "Rent" },
+    ],
+
+    // year: required except parts_accessories (B)
+    fields: [
+      {
+        key: "car_year",
+        label_ar: "سنة الصنع",
+        label_en: "Year",
+        type: FieldType.NUMBER,
+        required: true,
+        min: 2000,
+        max: 2026,
+        required_if_subcategory_in: ["passenger", "taxi", "van", "truck"]
+      },
+      {
+        key: "car_model",
+        label_ar: "الموديل",
+        label_en: "Model",
+        type: FieldType.STRING,
+        required: false
+      }
+    ],
+  },
+
+  // 3) Home furniture
+  {
+    key: "home_furniture",
+    label_ar: "أثاث المنزل",
+    label_en: "Home Furniture",
+    subcategories: [
+      { key: "bedroom", label_ar: "غرف نوم", label_en: "Bedrooms" },
+      { key: "living", label_ar: "طقم جلوس", label_en: "Living sets" },
+      { key: "kitchen", label_ar: "مطبخ", label_en: "Kitchen" },
+      { key: "dining", label_ar: "طاولة طعام", label_en: "Dining table" },
       { key: "other", label_ar: "أخرى", label_en: "Other" },
     ],
     deal_types_required: true,
@@ -88,15 +101,15 @@ export const categories = [
     fields: [],
   },
 
+  // 4) Electronics
   {
     key: "electronics",
     label_ar: "إلكترونيات",
     label_en: "Electronics",
     subcategories: [
-      { key: "tv", label_ar: "تلفزيونات", label_en: "TV" },
-      { key: "laptops", label_ar: "لابتوبات", label_en: "Laptops" },
-      { key: "cameras", label_ar: "كاميرات", label_en: "Cameras" },
-      { key: "gaming", label_ar: "ألعاب", label_en: "Gaming" },
+      { key: "mobile", label_ar: "موبايل", label_en: "Mobile" },
+      { key: "computer", label_ar: "كمبيوتر", label_en: "Computer" },
+      { key: "tv", label_ar: "تلفزيون", label_en: "TV" },
       { key: "other", label_ar: "أخرى", label_en: "Other" },
     ],
     deal_types_required: true,
@@ -107,15 +120,16 @@ export const categories = [
     fields: [],
   },
 
+  // 5) Electrical appliances
   {
-    key: "home",
-    label_ar: "للبيت",
-    label_en: "Home",
+    key: "appliances",
+    label_ar: "كهربائيات",
+    label_en: "Appliances",
     subcategories: [
-      { key: "furniture", label_ar: "أثاث", label_en: "Furniture" },
-      { key: "appliances", label_ar: "أجهزة منزلية", label_en: "Appliances" },
-      { key: "kitchen", label_ar: "مطبخ", label_en: "Kitchen" },
-      { key: "decor", label_ar: "ديكور", label_en: "Decor" },
+      { key: "washer", label_ar: "غسالة", label_en: "Washer" },
+      { key: "fridge", label_ar: "ثلاجة", label_en: "Fridge" },
+      { key: "oven", label_ar: "فرن", label_en: "Oven" },
+      { key: "microwave", label_ar: "ميكرويف", label_en: "Microwave" },
       { key: "other", label_ar: "أخرى", label_en: "Other" },
     ],
     deal_types_required: true,
@@ -126,16 +140,32 @@ export const categories = [
     fields: [],
   },
 
+  // 6) Clothing & shoes
   {
-    key: "services",
-    label_ar: "خدمات",
-    label_en: "Services",
+    key: "clothing_shoes",
+    label_ar: "ملابس وأحذية",
+    label_en: "Clothing & Shoes",
     subcategories: [
-      { key: "transport", label_ar: "نقل", label_en: "Transport" },
-      { key: "repair", label_ar: "تصليح", label_en: "Repair" },
-      { key: "education", label_ar: "تعليم", label_en: "Education" },
-      { key: "design", label_ar: "تصميم", label_en: "Design" },
-      { key: "other", label_ar: "أخرى", label_en: "Other" },
+      { key: "women", label_ar: "نسائي", label_en: "Women" },
+      { key: "kids", label_ar: "ولادي", label_en: "Kids" },
+      { key: "men", label_ar: "رجالي", label_en: "Men" },
+    ],
+    deal_types_required: true,
+    deal_types: [
+      { key: "sale", label_ar: "بيع", label_en: "Sale" },
+      { key: "wanted", label_ar: "شراء", label_en: "Wanted" },
+    ],
+    fields: [],
+  },
+
+  // 7) Jobs & services
+  {
+    key: "jobs_services",
+    label_ar: "وظائف وخدمات",
+    label_en: "Jobs & Services",
+    subcategories: [
+      { key: "jobs", label_ar: "وظائف", label_en: "Jobs" },
+      { key: "services", label_ar: "خدمات", label_en: "Services" },
     ],
     deal_types_required: true,
     deal_types: [
@@ -145,29 +175,14 @@ export const categories = [
     fields: [],
   },
 
-  {
-    key: "jobs",
-    label_ar: "وظائف",
-    label_en: "Jobs",
-    subcategories: [
-      { key: "full_time", label_ar: "دوام كامل", label_en: "Full-time" },
-      { key: "part_time", label_ar: "دوام جزئي", label_en: "Part-time" },
-      { key: "freelance", label_ar: "عمل حر", label_en: "Freelance" },
-      { key: "other", label_ar: "أخرى", label_en: "Other" },
-    ],
-    deal_types_required: true,
-    deal_types: [
-      { key: "offer", label_ar: "عرض وظيفة", label_en: "Offer" },
-      { key: "wanted", label_ar: "طلب عمل", label_en: "Wanted" },
-    ],
-    fields: [],
-  },
-
+  // 8) Other
   {
     key: "other",
     label_ar: "أخرى",
     label_en: "Other",
-    subcategories: [{ key: "other", label_ar: "أخرى", label_en: "Other" }],
+    subcategories: [
+      { key: "other", label_ar: "أخرى", label_en: "Other" },
+    ],
     deal_types_required: true,
     deal_types: [
       { key: "sale", label_ar: "بيع", label_en: "Sale" },
