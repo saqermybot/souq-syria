@@ -1,13 +1,57 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import WhatsAppInput from "@/components/WhatsAppInput";
 import { apiGet, apiPost, apiPostForm, apiDelete } from "@/lib/api";
 import { clearDraftText, loadDraftText } from "@/lib/draftText";
+
+async function convertToWebP(file) {
+  // decode via <img> (works better on iOS with HEIC)
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.src = url;
+
+  // wait decode
+  if (img.decode) {
+    await img.decode();
+  } else {
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+    });
+  }
+
+  // resize max width
+  const maxW = 1600;
+  const ratio = img.width > maxW ? maxW / img.width : 1;
+  const w = Math.round(img.width * ratio);
+  const h = Math.round(img.height * ratio);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0, w, h);
+  URL.revokeObjectURL(url);
+
+  // try webp, fallback jpeg
+  const webpBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", 0.85));
+  if (webpBlob) {
+    return new File([webpBlob], (file.name || "image").replace(/\.\w+$/, ".webp"), { type: "image/webp" });
+  }
+
+  const jpgBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.88));
+  if (jpgBlob) {
+    return new File([jpgBlob], (file.name || "image").replace(/\.\w+$/, ".jpg"), { type: "image/jpeg" });
+  }
+
+  throw new Error("IMAGE_CONVERT_FAILED");
+}
 
 export default function PostFinish() {
   const [catalog, setCatalog] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState("");
 
   const [draft, setDraft] = useState(null);
   const [files, setFiles] = useState([]);
@@ -53,16 +97,6 @@ export default function PostFinish() {
 
   function set(k, v) { setForm(p => ({ ...p, [k]: v })); }
 
-  useEffect(() => {
-    if (!category) return;
-    if (subcategories.length && !subcategories.find(s => s.key === form.subcategory_key)) {
-      set("subcategory_key", subcategories[0].key);
-    }
-    if (dealTypes.length && !dealTypes.find(d => d.key === form.deal_type)) {
-      set("deal_type", dealTypes[0].key);
-    }
-  }, [draft?.category_key]);
-
   const carYearField = fields.find(f => f.key === "car_year");
   const carYearRequired =
     carYearField?.required &&
@@ -79,6 +113,10 @@ export default function PostFinish() {
     if (carYearRequired && !form.car_year) return alert("سنة الصنع مطلوبة");
 
     setBusy(true);
+    setStatus("جاري إنشاء الإعلان...");
+
+    let id = null;
+
     try {
       const body = {
         title: draft.title,
@@ -96,24 +134,43 @@ export default function PostFinish() {
       };
 
       const created = await apiPost("/api/ads", body);
-      const id = created.id;
+      id = created.id;
 
-      const fd = new FormData();
-      for (const f of files.slice(0,5)) fd.append("images", f);
-
-      try {
-        await apiPostForm(`/api/ad/${id}/images`, fd);
-      } catch (e) {
-        // rollback
-        try { await apiDelete(`/api/ad/${id}`); } catch {}
-        alert("فشل رفع الصور، لم يتم نشر الإعلان.");
-        return;
+      // Convert before upload (fix iPhone HEIC)
+      setStatus("جاري تجهيز الصور...");
+      const converted = [];
+      for (const f of files.slice(0,5)) {
+        converted.push(await convertToWebP(f));
       }
 
+      setStatus("جاري رفع الصور...");
+      const fd = new FormData();
+      for (const f of converted) fd.append("images", f);
+
+      await apiPostForm(`/api/ad/${id}/images`, fd);
+
+      setStatus("تم ✅");
       clearDraftText();
       window.location.href = `/ad/${id}`;
+    } catch (e) {
+      // rollback if ad created
+      if (id) {
+        setStatus("فشل رفع الصور — يتم التراجع...");
+        try {
+          await apiDelete(`/api/ad/${id}`);
+        } catch (delErr) {
+          alert("فشل رفع الصور + فشل حذف الإعلان. راجع السجلات.\n" + (delErr?.message || delErr));
+          setBusy(false);
+          setStatus("");
+          return;
+        }
+      }
+
+      // show real reason
+      alert("فشل: " + (e?.message || e) + "\nلم يتم نشر الإعلان.");
     } finally {
       setBusy(false);
+      if (!busy) setStatus("");
     }
   }
 
@@ -149,31 +206,29 @@ export default function PostFinish() {
         </div>
 
         {carYearField ? (
-          <>
-            <div className="row">
-              <div style={{flex:1}}>
-                <label className="muted">سنة الصنع {carYearRequired ? "*" : ""}</label>
-                <select className="select" value={form.car_year} onChange={(e)=>set("car_year", e.target.value)}>
-                  <option value="">اختر</option>
-                  {carYears.map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
-              </div>
-              <div style={{flex:1}}>
-                <label className="muted">موديل (اختياري)</label>
-                <input className="input" value={form.car_model} onChange={(e)=>set("car_model", e.target.value)} />
-              </div>
+          <div className="row">
+            <div style={{flex:1}}>
+              <label className="muted">سنة الصنع {carYearRequired ? "*" : ""}</label>
+              <select className="select" value={form.car_year} onChange={(e)=>set("car_year", e.target.value)}>
+                <option value="">اختر</option>
+                {carYears.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
             </div>
-          </>
+            <div style={{flex:1}}>
+              <label className="muted">موديل (اختياري)</label>
+              <input className="input" value={form.car_model} onChange={(e)=>set("car_model", e.target.value)} />
+            </div>
+          </div>
         ) : null}
 
         <div className="hr" />
         <label className="muted">الصور * (1 إلى 5)</label>
         <input className="input" type="file" accept="image/*" multiple onChange={(e)=>setFiles(Array.from(e.target.files||[]).slice(0,5))} />
-        <div className="muted" style={{ marginTop: 6 }}>لن يتم نشر الإعلان بدون صور.</div>
+        <div className="muted" style={{ marginTop: 6 }}>المختار: {files.length}</div>
 
         <div className="hr" />
         <button className="btn btn-primary" disabled={busy} onClick={publish}>
-          {busy ? "..." : "نشر الإعلان"}
+          {busy ? (status || "...") : "نشر الإعلان"}
         </button>
       </div>
     </div>
