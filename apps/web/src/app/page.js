@@ -5,6 +5,7 @@ import { apiGet, apiPost } from "@/lib/api";
 
 function AdCard({ ad, onToggleFav }) {
   const img = ad.images?.[0];
+  const liked = (ad.favorites_count || 0) > 0;
 
   return (
     <Link href={`/ad/${ad.id}`} className="card card-link">
@@ -15,19 +16,19 @@ function AdCard({ ad, onToggleFav }) {
       )}
 
       <button
-        className={`heart ${ad.favorites_count > 0 ? "on" : ""}`}
+        className={`fav-bubble ${liked ? "on" : ""}`}
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleFav(ad.id); }}
         title="Favorite"
       >
-        <span className="icon">❤️</span>
-        <span className="count">{ad.favorites_count}</span>
+        <span className="fav-icon">{liked ? "♥" : "♡"}</span>
+        <span className="fav-count">{ad.favorites_count || 0}</span>
       </button>
 
       <div className="card-body">
         <div className="title" style={{ margin: 0 }}>{ad.title}</div>
         <div className="muted">{ad.province} • {ad.deal_type}</div>
         <div className="row" style={{ marginTop: 10 }}>
-          <div style={{ fontWeight: 800 }}>{ad.price} {ad.currency}</div>
+          <div style={{ fontWeight: 900 }}>{ad.price} {ad.currency}</div>
           <div className="muted">👁 {ad.views_count}</div>
         </div>
       </div>
