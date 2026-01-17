@@ -1,33 +1,22 @@
 /**
- * Single Source of Truth (Locked by docs/SPEC.md)
+ * Single Source of Truth (Locked)
  * - Categories/Subcategories
- * - Per-category fields (used by: Post Ad + Details + Filters)
- * - Allowed filters per category
+ * - Required fields per category
+ * - Allowed deal types per category
+ * - Provinces list (Syria v1)
  */
 
-export const CATALOG_VERSION = 1;
+export const CATALOG_VERSION = 2;
 
-/**
- * Field definition (minimal v1)
- * type: "string" | "number" | "enum"
- */
+export const provinces = [
+  "حلب","دمشق","ريف دمشق","حمص","حماة","اللاذقية","طرطوس","إدلب","دير الزور",
+  "الرقة","الحسكة","درعا","السويداء","القنيطرة"
+];
+
 export const FieldType = {
   STRING: "string",
   NUMBER: "number",
   ENUM: "enum",
-};
-
-/**
- * Common filters available everywhere (v1):
- * - query, province, price_min, price_max
- * - deal_type (allowed values per category)
- */
-export const CommonFilters = {
-  QUERY: "query",
-  PROVINCE: "province",
-  PRICE_MIN: "price_min",
-  PRICE_MAX: "price_max",
-  DEAL_TYPE: "deal_type",
 };
 
 export const categories = [
@@ -44,29 +33,21 @@ export const categories = [
       { key: "parts", label_ar: "قطع سيارات", label_en: "Parts" },
       { key: "other", label_ar: "أخرى", label_en: "Other" },
     ],
+    deal_types_required: true,
+    deal_types: [
+      { key: "sale", label_ar: "بيع", label_en: "Sale" },
+      { key: "wanted", label_ar: "شراء", label_en: "Wanted" },
+    ],
     fields: [
       {
         key: "car_year",
         label_ar: "سنة الصنع",
         label_en: "Year",
         type: FieldType.NUMBER,
-        required: false,
-        min: 1970,
-        max: 2035,
+        required: true,
+        min: 2000,
+        max: 2026,
       },
-    ],
-    filters: [
-      CommonFilters.QUERY,
-      CommonFilters.PROVINCE,
-      CommonFilters.PRICE_MIN,
-      CommonFilters.PRICE_MAX,
-      CommonFilters.DEAL_TYPE,
-      "car_year_min",
-      "car_year_max",
-    ],
-    deal_types: [
-      { key: "sale", label_ar: "بيع", label_en: "Sale" },
-      { key: "wanted", label_ar: "شراء", label_en: "Wanted" },
     ],
   },
 
@@ -81,19 +62,12 @@ export const categories = [
       { key: "commercial", label_ar: "تجاري", label_en: "Commercial" },
       { key: "other", label_ar: "أخرى", label_en: "Other" },
     ],
-    fields: [],
-    filters: [
-      CommonFilters.QUERY,
-      CommonFilters.PROVINCE,
-      CommonFilters.PRICE_MIN,
-      CommonFilters.PRICE_MAX,
-      CommonFilters.DEAL_TYPE,
-    ],
+    deal_types_required: true,
     deal_types: [
       { key: "sale", label_ar: "بيع", label_en: "Sale" },
       { key: "rent", label_ar: "إيجار", label_en: "Rent" },
-      { key: "wanted", label_ar: "طلب", label_en: "Wanted" },
     ],
+    fields: [],
   },
 
   {
@@ -106,18 +80,12 @@ export const categories = [
       { key: "accessories", label_ar: "اكسسوارات", label_en: "Accessories" },
       { key: "other", label_ar: "أخرى", label_en: "Other" },
     ],
-    fields: [],
-    filters: [
-      CommonFilters.QUERY,
-      CommonFilters.PROVINCE,
-      CommonFilters.PRICE_MIN,
-      CommonFilters.PRICE_MAX,
-      CommonFilters.DEAL_TYPE,
-    ],
+    deal_types_required: true,
     deal_types: [
       { key: "sale", label_ar: "بيع", label_en: "Sale" },
       { key: "wanted", label_ar: "شراء", label_en: "Wanted" },
     ],
+    fields: [],
   },
 
   {
@@ -131,18 +99,12 @@ export const categories = [
       { key: "gaming", label_ar: "ألعاب", label_en: "Gaming" },
       { key: "other", label_ar: "أخرى", label_en: "Other" },
     ],
-    fields: [],
-    filters: [
-      CommonFilters.QUERY,
-      CommonFilters.PROVINCE,
-      CommonFilters.PRICE_MIN,
-      CommonFilters.PRICE_MAX,
-      CommonFilters.DEAL_TYPE,
-    ],
+    deal_types_required: true,
     deal_types: [
       { key: "sale", label_ar: "بيع", label_en: "Sale" },
       { key: "wanted", label_ar: "شراء", label_en: "Wanted" },
     ],
+    fields: [],
   },
 
   {
@@ -156,18 +118,12 @@ export const categories = [
       { key: "decor", label_ar: "ديكور", label_en: "Decor" },
       { key: "other", label_ar: "أخرى", label_en: "Other" },
     ],
-    fields: [],
-    filters: [
-      CommonFilters.QUERY,
-      CommonFilters.PROVINCE,
-      CommonFilters.PRICE_MIN,
-      CommonFilters.PRICE_MAX,
-      CommonFilters.DEAL_TYPE,
-    ],
+    deal_types_required: true,
     deal_types: [
       { key: "sale", label_ar: "بيع", label_en: "Sale" },
       { key: "wanted", label_ar: "شراء", label_en: "Wanted" },
     ],
+    fields: [],
   },
 
   {
@@ -181,18 +137,12 @@ export const categories = [
       { key: "design", label_ar: "تصميم", label_en: "Design" },
       { key: "other", label_ar: "أخرى", label_en: "Other" },
     ],
-    fields: [],
-    filters: [
-      CommonFilters.QUERY,
-      CommonFilters.PROVINCE,
-      CommonFilters.PRICE_MIN,
-      CommonFilters.PRICE_MAX,
-      CommonFilters.DEAL_TYPE,
-    ],
+    deal_types_required: true,
     deal_types: [
       { key: "offer", label_ar: "عرض", label_en: "Offer" },
       { key: "wanted", label_ar: "طلب", label_en: "Wanted" },
     ],
+    fields: [],
   },
 
   {
@@ -205,18 +155,12 @@ export const categories = [
       { key: "freelance", label_ar: "عمل حر", label_en: "Freelance" },
       { key: "other", label_ar: "أخرى", label_en: "Other" },
     ],
-    fields: [],
-    filters: [
-      CommonFilters.QUERY,
-      CommonFilters.PROVINCE,
-      CommonFilters.PRICE_MIN,
-      CommonFilters.PRICE_MAX,
-      CommonFilters.DEAL_TYPE,
-    ],
+    deal_types_required: true,
     deal_types: [
       { key: "offer", label_ar: "عرض وظيفة", label_en: "Offer" },
       { key: "wanted", label_ar: "طلب عمل", label_en: "Wanted" },
     ],
+    fields: [],
   },
 
   {
@@ -224,17 +168,11 @@ export const categories = [
     label_ar: "أخرى",
     label_en: "Other",
     subcategories: [{ key: "other", label_ar: "أخرى", label_en: "Other" }],
-    fields: [],
-    filters: [
-      CommonFilters.QUERY,
-      CommonFilters.PROVINCE,
-      CommonFilters.PRICE_MIN,
-      CommonFilters.PRICE_MAX,
-      CommonFilters.DEAL_TYPE,
-    ],
+    deal_types_required: true,
     deal_types: [
       { key: "sale", label_ar: "بيع", label_en: "Sale" },
       { key: "wanted", label_ar: "شراء", label_en: "Wanted" },
     ],
+    fields: [],
   },
 ];
