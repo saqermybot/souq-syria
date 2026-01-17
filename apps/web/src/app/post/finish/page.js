@@ -5,12 +5,10 @@ import { apiGet, apiPost, apiPostForm, apiDelete } from "@/lib/api";
 import { clearDraftText, loadDraftText } from "@/lib/draftText";
 
 async function convertToWebP(file) {
-  // decode via <img> (works better on iOS with HEIC)
   const url = URL.createObjectURL(file);
   const img = new Image();
   img.src = url;
 
-  // wait decode
   if (img.decode) {
     await img.decode();
   } else {
@@ -20,7 +18,6 @@ async function convertToWebP(file) {
     });
   }
 
-  // resize max width
   const maxW = 1600;
   const ratio = img.width > maxW ? maxW / img.width : 1;
   const w = Math.round(img.width * ratio);
@@ -34,7 +31,6 @@ async function convertToWebP(file) {
   ctx.drawImage(img, 0, 0, w, h);
   URL.revokeObjectURL(url);
 
-  // try webp, fallback jpeg
   const webpBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", 0.85));
   if (webpBlob) {
     return new File([webpBlob], (file.name || "image").replace(/\.\w+$/, ".webp"), { type: "image/webp" });
@@ -129,14 +125,13 @@ export default function PostFinish() {
         deal_type: form.deal_type,
         car_year: carYearRequired ? Number(form.car_year) : null,
         car_model: form.car_model || undefined,
-        whatsapp_e164: draft.whatsapp_e164 || undefined,
+        ...(draft.whatsapp_e164 ? { whatsapp_e164: draft.whatsapp_e164 } : {}),
         images: [],
       };
 
       const created = await apiPost("/api/ads", body);
       id = created.id;
 
-      // Convert before upload (fix iPhone HEIC)
       setStatus("جاري تجهيز الصور...");
       const converted = [];
       for (const f of files.slice(0,5)) {
@@ -153,7 +148,6 @@ export default function PostFinish() {
       clearDraftText();
       window.location.href = `/ad/${id}`;
     } catch (e) {
-      // rollback if ad created
       if (id) {
         setStatus("فشل رفع الصور — يتم التراجع...");
         try {
@@ -166,7 +160,6 @@ export default function PostFinish() {
         }
       }
 
-      // show real reason
       alert("فشل: " + (e?.message || e) + "\nلم يتم نشر الإعلان.");
     } finally {
       setBusy(false);
