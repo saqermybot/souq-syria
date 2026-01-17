@@ -2,7 +2,6 @@
 import WhatsAppInput from "@/components/WhatsAppInput";
 
 export default function FinishPricing({
-  provinces,
   form,
   set,
   whatsappE164,
@@ -31,13 +30,6 @@ export default function FinishPricing({
           </select>
         </div>
       </div>
-
-      <div style={{ height: 10 }} />
-      <label className="muted">المحافظة *</label>
-      <select className="select" value={form.province} onChange={(e)=>set("province", e.target.value)}>
-        <option value="">اختر</option>
-        {provinces.map(p => <option key={p} value={p}>{p}</option>)}
-      </select>
 
       <div style={{ height: 10 }} />
       <label className="muted">واتساب (اختياري)</label>

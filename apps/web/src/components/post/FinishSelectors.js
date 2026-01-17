@@ -3,6 +3,7 @@
 export default function FinishSelectors({
   subcategories,
   dealTypes,
+  provinces,
   carYearField,
   carYearRequired,
   carYears,
@@ -11,17 +12,27 @@ export default function FinishSelectors({
 }) {
   return (
     <>
+      {/* Top row: type + deal + province */}
       <div className="row">
-        <div style={{flex:1}}>
+        <div style={{flex: 1.2}}>
           <label className="muted">النوع *</label>
           <select className="select" value={form.subcategory_key} onChange={(e)=>set("subcategory_key", e.target.value)}>
             {subcategories.map(s => <option key={s.key} value={s.key}>{s.label_ar}</option>)}
           </select>
         </div>
-        <div style={{flex:1}}>
+
+        <div style={{flex: 0.8}}>
           <label className="muted">بيع/إيجار *</label>
           <select className="select" value={form.deal_type} onChange={(e)=>set("deal_type", e.target.value)}>
             {dealTypes.map(d => <option key={d.key} value={d.key}>{d.label_ar}</option>)}
+          </select>
+        </div>
+
+        <div style={{flex: 1}}>
+          <label className="muted">المحافظة *</label>
+          <select className="select" value={form.province} onChange={(e)=>set("province", e.target.value)}>
+            <option value="">اختر</option>
+            {provinces.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
         </div>
       </div>

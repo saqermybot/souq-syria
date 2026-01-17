@@ -192,6 +192,7 @@ export default function PostFinish() {
         <FinishSelectors
           subcategories={subcategories}
           dealTypes={dealTypes}
+          provinces={provinces}
           carYearField={carYearField}
           carYearRequired={carYearRequired}
           carYears={carYears}
@@ -202,7 +203,6 @@ export default function PostFinish() {
         <div className="hr" />
 
         <FinishPricing
-          provinces={provinces}
           form={form}
           set={set}
           whatsappE164={whatsappE164}
