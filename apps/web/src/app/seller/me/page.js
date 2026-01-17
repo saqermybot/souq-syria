@@ -31,7 +31,7 @@ export default function SellerMe() {
 
       <div className="card">
         <div className="card-body">
-          <div className="muted">هذه صفحة إدارة بسيطة (التعديل الكامل لاحقًا).</div>
+          <div className="muted">إدارة بسيطة الآن. تعديل الاسم/الشركة سنفعله بالخطوة القادمة.</div>
           <div className="hr" />
           <div className="badge">ID: {seller.id}</div>
           <div style={{ height: 10 }} />
