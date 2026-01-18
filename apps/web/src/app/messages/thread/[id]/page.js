@@ -1,68 +1,64 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { apiGet, apiPost } from "@/lib/api";
 import { getGuestId } from "@/lib/guest";
 
-function Toast({ text }) {
-  if (!text) return null;
-  return (
-    <div style={{
-      position: "fixed",
-      bottom: 18,
-      left: 18,
-      padding: "10px 14px",
-      borderRadius: 12,
-      background: "rgba(0,0,0,.75)",
-      color: "white",
-      zIndex: 9999,
-      border: "1px solid rgba(255,255,255,.15)",
-      fontSize: 13
-    }}>
-      {text}
-    </div>
-  );
+function isReadByOther(m, thread, myGuest) {
+  if (!thread) return false;
+  const ts = Date.parse(m.created_at) || 0;
+
+  const buyerRead = Date.parse(thread.buyer_last_read_at || "") || 0;
+  const sellerRead = Date.parse(thread.seller_last_read_at || "") || 0;
+
+  const iAmSeller = thread.seller_guest_id === myGuest;
+  const iAmBuyer = thread.buyer_guest_id === myGuest;
+
+  // If I sent message as seller -> read when buyer read time >= message time
+  if (iAmSeller && m.sender_role === "seller") return buyerRead >= ts;
+  // If I sent message as buyer -> read when seller read time >= message time
+  if (iAmBuyer && m.sender_role === "buyer") return sellerRead >= ts;
+
+  return false;
 }
 
 export default function ThreadPage({ params }) {
-  const threadId = params.id;
+  const threadId = params?.id;
 
-  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [thread, setThread] = useState(null);
+  const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const [err, setErr] = useState("");
-  const [toast, setToast] = useState("");
 
-  const lastCount = useRef(0);
   const listRef = useRef(null);
-  const myGuestId = useMemo(() => {
-    try { return getGuestId(); } catch { return ""; }
+  const myGuest = useRef("");
+
+  useEffect(() => {
+    try { myGuest.current = getGuestId(); } catch { myGuest.current = ""; }
   }, []);
 
-  function scrollToBottom(instant = false) {
+  function scrollToBottom() {
     const el = listRef.current;
     if (!el) return;
-    if (instant) el.scrollTop = el.scrollHeight;
-    else el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    el.scrollTop = el.scrollHeight;
   }
 
-  async function load({ silent = false } = {}) {
+  async function load({ silent=false } = {}) {
     if (!silent) setErr("");
     try {
+      if (!threadId) throw new Error("BAD_ID");
       const r = await apiGet(`/api/messages/thread/${threadId}`);
-      setData(r);
+      setThread(r.thread);
+      setMessages(r.messages || []);
 
-      const newLen = r.messages?.length || 0;
-      if (lastCount.current && newLen > lastCount.current) {
-        setToast("وصلت رسالة جديدة");
-        setTimeout(() => setToast(""), 1500);
-        scrollToBottom(false);
-      } else if (!lastCount.current && newLen) {
-        // first load
-        setTimeout(() => scrollToBottom(true), 50);
-      }
-      lastCount.current = newLen;
+      // mark read
+      try { await apiPost(`/api/messages/thread/${threadId}/read`, {}); } catch {}
+      setTimeout(scrollToBottom, 80);
     } catch (e) {
       setErr(String(e.message || e));
+    } finally {
+      if (!silent) setLoading(false);
     }
   }
 
@@ -79,114 +75,88 @@ export default function ThreadPage({ params }) {
     try {
       await apiPost(`/api/messages/thread/${threadId}/send`, { text: msg });
       await load({ silent: true });
-      setTimeout(() => scrollToBottom(false), 80);
     } catch (e) {
       alert(e.message);
     }
   }
 
   function onKeyDown(e) {
-    // Enter to send (without Shift)
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter") {
       e.preventDefault();
       send();
     }
   }
 
+  if (loading) return <div className="card"><div className="card-body">Loading...</div></div>;
   if (err) return <div className="card"><div className="card-body">Error: {err}</div></div>;
-  if (!data) return <div className="card"><div className="card-body">Loading...</div></div>;
-
-  const thread = data.thread;
-  const messages = data.messages || [];
-  const sellerName = thread?.seller_name || "Seller";
-  const verified = thread?.seller_is_verified ? "✅" : "";
 
   return (
-    <div style={{ paddingBottom: 88 }}>
-      <Toast text={toast} />
-
-      {/* Header */}
-      <div className="row" style={{ marginBottom: 12, alignItems: "center" }}>
-        <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
-          <div style={{ fontWeight: 900, fontSize: 20 }}>{thread.ad_title}</div>
-          <div className="muted">{sellerName} {verified}</div>
+    <div style={{ paddingBottom: 72 }}>
+      <div className="row" style={{ marginBottom: 10, alignItems: "center" }}>
+        <div style={{ display:"flex", alignItems:"center", gap: 10 }}>
+          {thread?.ad_image ? (
+            <img src={thread.ad_image} alt="thumb" width="36" height="36" style={{ borderRadius: 10, objectFit:"cover", border:"1px solid var(--border)" }} />
+          ) : null}
+          <div>
+            <div style={{ fontWeight: 900, fontSize: 18 }}>{thread?.ad_title || "محادثة"}</div>
+            <div className="muted" style={{ fontSize: 12 }}>{thread?.seller_name || "Seller"} {thread?.seller_is_verified ? "✅" : ""}</div>
+          </div>
         </div>
 
-        {/* Back on LEFT for Arabic thumb reach */}
-        <Link className="btn" href="/messages" style={{ marginInlineStart: 0, marginInlineEnd: "auto" }}>
+        <button className="btn" onClick={() => (window.history.length > 1 ? window.history.back() : (window.location.href="/messages"))} style={{ marginInlineStart: 0, marginInlineEnd: "auto" }}>
           ← الرجوع
-        </Link>
+        </button>
       </div>
 
-      {/* Messages */}
-      <div
-        ref={listRef}
-        className="card"
-        style={{
-          height: "62vh",
-          overflowY: "auto",
-        }}
-      >
-        <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {messages.map((m) => {
-            const mine = myGuestId && m.sender_guest_id === myGuestId;
+      <div ref={listRef} className="card" style={{ height: "62vh", overflowY: "auto" }}>
+        <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 10, paddingBottom: 90 }}>
+          {messages.map(m => {
+            const mine = myGuest.current && m.sender_guest_id === myGuest.current;
+            const read = mine ? isReadByOther(m, thread, myGuest.current) : false;
+
             return (
-              <div
-                key={m.id}
-                style={{
-                  maxWidth: "92%",
-                  alignSelf: mine ? "flex-start" : "flex-end",
-                  textAlign: "right",
-                }}
-              >
-                <div
-                  style={{
-                    padding: "10px 12px",
-                    borderRadius: 14,
-                    background: mine ? "rgba(59,130,246,.14)" : "rgba(255,255,255,.06)",
-                    border: "1px solid rgba(255,255,255,.10)",
-                  }}
-                >
-                  <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.45 }}>{m.text}</div>
-                  <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>
-                    {new Date(m.created_at).toLocaleString("ar")}
+              <div key={m.id} style={{ maxWidth: "85%", marginInlineStart: mine ? "auto" : 0, marginInlineEnd: mine ? 0 : "auto", textAlign: "right" }}>
+                <div style={{
+                  padding: "8px 12px",
+                  borderRadius: 14,
+                  background: mine ? "var(--chat-mine)" : "var(--chat-other)",
+                  border: "1px solid var(--border)"
+                }}>
+                  <div style={{ whiteSpace: "pre-wrap" }}>{m.text}</div>
+
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop: 6 }}>
+                    <div className="muted" style={{ fontSize: 11 }}>
+                      {new Date(m.created_at).toLocaleTimeString("ar")}
+                    </div>
+
+                    {mine ? (
+                      <div style={{ fontSize: 14, fontWeight: 900, color: read ? "rgba(37,99,235,.95)" : "rgba(100,116,139,.9)" }}>
+                        {read ? "✓✓" : "✓"}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </div>
             );
           })}
+          {messages.length === 0 ? <div className="muted">لا توجد رسائل بعد.</div> : null}
         </div>
       </div>
 
-      {/* Composer fixed bottom */}
       <div style={{
         position: "fixed",
         left: 0,
         right: 0,
         bottom: 0,
-        padding: "12px",
-        background: "rgba(5,10,20,.70)",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
-        borderTop: "1px solid rgba(255,255,255,.10)",
+        padding: "8px 10px",
+        background: "var(--card)",
+        borderTop: "1px solid var(--border)"
       }}>
-        <div className="row" style={{ gap: 10, alignItems: "center" }}>
-          {/* Send button on LEFT */}
-          <button className="btn btn-primary" onClick={send} style={{ minWidth: 92 }}>
+        <div className="row" style={{ gap: 8, alignItems: "center" }}>
+          <button className="btn btn-primary" onClick={send} style={{ minWidth: 80, height: 40 }}>
             إرسال
           </button>
-
-          <textarea
-            className="textarea"
-            value={text}
-            onChange={(e)=>setText(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder="اكتب رسالة..."
-            style={{ flex: 1, height: 44, paddingTop: 10, resize: "none" }}
-          />
-        </div>
-        <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>
-          Enter للإرسال • Shift+Enter لسطر جديد
+          <input className="input" value={text} onChange={(e)=>setText(e.target.value)} onKeyDown={onKeyDown} placeholder="اكتب رسالة..." style={{ flex: 1, height: 40 }} />
         </div>
       </div>
     </div>

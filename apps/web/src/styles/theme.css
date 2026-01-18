@@ -1,0 +1,22 @@
+:root {
+  /* Backgrounds */
+  --bg-main: #f5f6f7;
+  --bg-card: #ffffff;
+  --bg-soft: #f9fafb;
+
+  /* Text */
+  --text-main: #1f2937;
+  --text-muted: #6b7280;
+
+  /* Borders & shadows */
+  --border-soft: #e5e7eb;
+  --shadow-soft: 0 4px 14px rgba(0,0,0,0.04);
+
+  /* Primary */
+  --primary: #0ea5e9;
+  --primary-soft: #e0f2fe;
+
+  /* Message bubbles */
+  --bubble-me: #e0f2fe;
+  --bubble-other: #f3f4f6;
+}

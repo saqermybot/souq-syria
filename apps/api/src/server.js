@@ -1,17 +1,21 @@
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
+import { createApp } from "./app.js";
 
-// Load env FIRST (before importing app/db modules)
+// Always load env from apps/api/.env
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, "../.env") });
 
-if (!process.env.DATABASE_URL) {
-  console.error("FATAL: DATABASE_URL is missing (apps/api/.env not loaded)");
+// Accept either DATABASE_URL or PG* variables
+const hasDb =
+  !!process.env.DATABASE_URL ||
+  (!!process.env.PGUSER && !!process.env.PGPASSWORD && !!process.env.PGDATABASE);
+
+if (!hasDb) {
+  console.error("FATAL: DB env missing. Set DATABASE_URL or PGUSER/PGPASSWORD/PGDATABASE in apps/api/.env");
   process.exit(1);
 }
-
-const { createApp } = await import("./app.js");
 
 const app = createApp();
 const port = process.env.PORT || 4000;

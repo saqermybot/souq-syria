@@ -4,7 +4,9 @@ export function getGuestId() {
   let v = localStorage.getItem(key);
   if (!v) {
     // simple uuid-ish
-    v = crypto.randomUUID ? crypto.randomUUID() : `guest-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    v = crypto.randomUUID
+      ? crypto.randomUUID()
+      : `guest-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     localStorage.setItem(key, v);
   }
   return v;
@@ -12,6 +14,7 @@ export function getGuestId() {
 
 export function shortGuest(guestId) {
   if (!guestId) return "Guest";
-  const tail = guestId.replace(/-/g,"").slice(-4).toUpperCase();
+  const tail = guestId.replace(/-/g, "").slice(-4).toUpperCase();
   return `Guest-${tail}`;
 }
+

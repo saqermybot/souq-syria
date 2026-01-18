@@ -13,10 +13,6 @@ export async function getOrCreateThread({ adId, sellerId, buyerGuestId }) {
 }
 
 export async function listInbox({ guestId }) {
-  // Guest could be buyer OR seller (seller uses guest_id inside sellers table)
-  // We include both:
-  // - buyer threads where buyer_guest_id = guestId
-  // - seller threads where sellers.guest_id = guestId
   const r = await pool.query(
     `SELECT
         t.id,
@@ -25,6 +21,7 @@ export async function listInbox({ guestId }) {
         t.buyer_guest_id,
         t.last_message_at,
         a.title AS ad_title,
+        (a.images->>0) AS ad_image,
         COALESCE(s.company_name, s.display_name, 'Seller') AS seller_name,
         s.is_verified AS seller_is_verified
      FROM threads t
@@ -56,9 +53,7 @@ export async function getThread({ threadId, guestId }) {
   const t = r.rows[0];
   if (!t) return null;
 
-  // authorize: buyer or seller
   if (t.buyer_guest_id !== guestId && t.seller_guest_id !== guestId) return { forbidden: true };
-
   return t;
 }
 
@@ -75,7 +70,6 @@ export async function listMessages({ threadId }) {
 }
 
 export async function sendMessage({ threadId, guestId, text }) {
-  // determine role by comparing guestId to seller guest id in thread
   const t = await pool.query(
     `SELECT t.id, t.buyer_guest_id, s.guest_id AS seller_guest_id
      FROM threads t
@@ -89,7 +83,6 @@ export async function sendMessage({ threadId, guestId, text }) {
   const row = t.rows[0];
   const role = row.seller_guest_id === guestId ? "seller" : "buyer";
 
-  // authorize: must be buyer or seller of this thread
   if (row.buyer_guest_id !== guestId && row.seller_guest_id !== guestId) {
     return { ok: false, error: "FORBIDDEN" };
   }
@@ -104,4 +97,57 @@ export async function sendMessage({ threadId, guestId, text }) {
   await pool.query(`UPDATE threads SET last_message_at = now() WHERE id = $1`, [threadId]);
 
   return { ok: true, message: { id: m.rows[0].id, created_at: m.rows[0].created_at, sender_role: role } };
+}
+
+/**
+ * Required by messages.routes.js
+ * Mark thread as read for buyer or seller.
+ */
+export async function markThreadRead({ threadId, guestId }) {
+  const r = await pool.query(
+    `SELECT t.id, t.buyer_guest_id, s.guest_id AS seller_guest_id
+     FROM threads t
+     JOIN sellers s ON s.id = t.seller_id
+     WHERE t.id = $1
+     LIMIT 1`,
+    [threadId]
+  );
+  if (r.rowCount === 0) return { ok: false, error: "NOT_FOUND" };
+
+  const row = r.rows[0];
+  if (row.buyer_guest_id !== guestId && row.seller_guest_id !== guestId) {
+    return { ok: false, error: "FORBIDDEN" };
+  }
+
+  if (row.buyer_guest_id === guestId) {
+    await pool.query(`UPDATE threads SET buyer_last_read_at = now() WHERE id = $1`, [threadId]);
+  } else {
+    await pool.query(`UPDATE threads SET seller_last_read_at = now() WHERE id = $1`, [threadId]);
+  }
+
+  return { ok: true };
+}
+
+/**
+ * Required by messages.routes.js
+ * Return unread threads count for header badge.
+ */
+export async function unreadCount({ guestId }) {
+  const r = await pool.query(
+    `SELECT COUNT(*)::int AS n
+     FROM threads t
+     JOIN sellers s ON s.id = t.seller_id
+     WHERE
+       (
+         t.buyer_guest_id = $1 AND t.last_message_at IS NOT NULL AND
+         (t.buyer_last_read_at IS NULL OR t.buyer_last_read_at < t.last_message_at)
+       )
+       OR
+       (
+         s.guest_id = $1 AND t.last_message_at IS NOT NULL AND
+         (t.seller_last_read_at IS NULL OR t.seller_last_read_at < t.last_message_at)
+       )`,
+    [guestId]
+  );
+  return r.rows[0]?.n ?? 0;
 }

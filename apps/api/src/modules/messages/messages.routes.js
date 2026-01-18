@@ -2,7 +2,15 @@ import { Router } from "express";
 import { z } from "zod";
 import { validateAdId } from "../ads/ads.validation.js";
 import { getAdById } from "../ads/ads.service.js";
-import { getOrCreateThread, listInbox, getThread, listMessages, sendMessage } from "./messages.service.js";
+import {
+  getOrCreateThread,
+  listInbox,
+  getThread,
+  listMessages,
+  sendMessage,
+  unreadCount,
+  markThreadRead
+} from "./messages.service.js";
 
 export const messagesRouter = Router();
 
@@ -10,7 +18,7 @@ function getGuestId(req) {
   return (req.headers["x-guest-id"] || "").toString().trim();
 }
 
-// Create/open thread from ad
+// Open thread by ad_id
 messagesRouter.post("/messages/open", async (req, res, next) => {
   try {
     const guestId = getGuestId(req);
@@ -28,7 +36,7 @@ messagesRouter.post("/messages/open", async (req, res, next) => {
     const threadId = await getOrCreateThread({ adId: v.value, sellerId: ad.seller_id, buyerGuestId: guestId });
     return res.json({ ok: true, thread_id: threadId });
   } catch (e) {
-    return next(e);
+    next(e);
   }
 });
 
@@ -41,7 +49,20 @@ messagesRouter.get("/messages/inbox", async (req, res, next) => {
     const items = await listInbox({ guestId });
     return res.json({ ok: true, items });
   } catch (e) {
-    return next(e);
+    next(e);
+  }
+});
+
+// Unread count (badge)
+messagesRouter.get("/messages/unread-count", async (req, res, next) => {
+  try {
+    const guestId = getGuestId(req);
+    if (!guestId) return res.status(400).json({ ok: false, error: "MISSING_GUEST_ID" });
+
+    const n = await unreadCount({ guestId });
+    return res.json({ ok: true, unread: n });
+  } catch (e) {
+    next(e);
   }
 });
 
@@ -54,18 +75,39 @@ messagesRouter.get("/messages/thread/:id", async (req, res, next) => {
     const threadId = parseInt(req.params.id, 10);
     if (!Number.isInteger(threadId) || threadId <= 0) return res.status(400).json({ ok: false, error: "BAD_ID" });
 
-    const t = await getThread({ threadId, guestId });
+    const t = await getThread({ threadId });
     if (!t) return res.status(404).json({ ok: false, error: "NOT_FOUND" });
-    if (t.forbidden) return res.status(403).json({ ok: false, error: "FORBIDDEN" });
+
+    const isBuyer = t.buyer_guest_id === guestId;
+    const isSeller = t.seller_guest_id === guestId;
+    if (!isBuyer && !isSeller) return res.status(403).json({ ok: false, error: "FORBIDDEN" });
 
     const msgs = await listMessages({ threadId });
     return res.json({ ok: true, thread: t, messages: msgs });
   } catch (e) {
-    return next(e);
+    next(e);
   }
 });
 
-// Send message
+// Mark read
+messagesRouter.post("/messages/thread/:id/read", async (req, res, next) => {
+  try {
+    const guestId = getGuestId(req);
+    if (!guestId) return res.status(400).json({ ok: false, error: "MISSING_GUEST_ID" });
+
+    const threadId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(threadId) || threadId <= 0) return res.status(400).json({ ok: false, error: "BAD_ID" });
+
+    const r = await markThreadRead({ threadId, guestId });
+    if (!r.ok) return res.status(r.error === "FORBIDDEN" ? 403 : 404).json({ ok: false, error: r.error });
+
+    return res.json({ ok: true });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Send
 messagesRouter.post("/messages/thread/:id/send", async (req, res, next) => {
   try {
     const guestId = getGuestId(req);
@@ -82,6 +124,6 @@ messagesRouter.post("/messages/thread/:id/send", async (req, res, next) => {
 
     return res.json({ ok: true, message: r.message });
   } catch (e) {
-    return next(e);
+    next(e);
   }
 });

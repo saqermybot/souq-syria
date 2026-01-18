@@ -1,32 +1,60 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getGuestId, shortGuest } from "@/lib/guest";
+import { apiGet } from "@/lib/api";
 
-export default function Header() {
-  const [guest, setGuest] = useState("");
-  const name = process.env.NEXT_PUBLIC_SITE_NAME || "Souq Syria";
+export default function Header({ guest }) {
+  const [unread, setUnread] = useState(0);
 
   useEffect(() => {
-    setGuest(getGuestId());
+    async function poll() {
+      try {
+        const r = await apiGet("/api/messages/unread-count");
+        setUnread(r.unread || 0);
+      } catch {
+        // ignore
+      }
+    }
+    poll();
+    const t = setInterval(poll, 6000);
+    return () => clearInterval(t);
   }, []);
 
   return (
-    <div className="header">
-      <div className="header-inner">
-        <Link className="brand" href="/">
-          <span style={{ width: 10, height: 10, borderRadius: 999, background: "var(--accent)", boxShadow: "0 0 0 4px rgba(74,163,255,.18)" }} />
-          <span>{name}</span>
+    <div className="topbar">
+      <Link href="/" className="brand">Souq Syria</Link>
+
+      <div className="top-actions">
+        <Link href="/messages" className="icon-btn" title="الرسائل" style={{ position:"relative" }}>
+          💬
+          {unread > 0 ? (
+            <span style={{
+              position:"absolute",
+              top:-6, right:-6,
+              minWidth:18,
+              height:18,
+              padding:"0 6px",
+              borderRadius:999,
+              background:"rgba(239,68,68,.95)",
+              color:"white",
+              fontSize:11,
+              fontWeight:900,
+              display:"flex",
+              alignItems:"center",
+              justifyContent:"center",
+              border:"2px solid rgba(255,255,255,.9)"
+            }}>
+              {unread}
+            </span>
+          ) : null}
         </Link>
 
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <Link className="icon-btn" href="/messages" title="Messages">💬</Link>
-          <Link className="icon-btn" href="/favorites" title="Favorites">❤️</Link>
-          <Link className="pill" href="/account" title="Account">
-            <span>👤</span>
-            <span>{guest ? shortGuest(guest) : "Guest"}</span>
-          </Link>
-        </div>
+        <Link href="/favorites" className="icon-btn" title="المفضلة">❤️</Link>
+
+        <Link href="/account" className="icon-btn" title="الحساب" style={{ width: 56, gap: 8, justifyContent:"flex-start", padding:"0 10px" }}>
+          <img src="/icons/syria-flag-round.png" alt="avatar" width="28" height="28" style={{ borderRadius: 999, display:"block" }} />
+          <span style={{ fontSize: 14, fontWeight: 800 }}>{guest || "Guest"}</span>
+        </Link>
       </div>
     </div>
   );

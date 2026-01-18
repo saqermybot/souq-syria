@@ -6,6 +6,8 @@ import { uploadsRouter } from "./modules/uploads/uploads.routes.js";
 import { sellersRouter } from "./modules/sellers/sellers.routes.js";
 import { catalogRouter } from "./modules/catalog/catalog.routes.js";
 import { messagesRouter } from "./modules/messages/messages.routes.js";
+import { pushRouter } from "./modules/push/push.routes.js";
+import { pushTestRouter } from "./modules/push/push.test.routes.js";
 import { adminRouter } from "./modules/admin/admin.routes.js";
 
 export function createApp() {
@@ -21,6 +23,9 @@ export function createApp() {
   app.use("/api", sellersRouter);
   app.use("/api", catalogRouter);
   app.use("/api", messagesRouter);
+  app.use("/api", pushRouter);
+  app.use("/api", pushTestRouter);
+  app.use("/api", pushTestRouter);
   app.use("/api", adminRouter);
 
   app.use((req, res) => res.status(404).json({ ok: false, error: "NOT_FOUND" }));
