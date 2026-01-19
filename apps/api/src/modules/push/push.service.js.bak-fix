@@ -1,0 +1,67 @@
+import webpush from "web-push";
+import { pool } from "../../db/pool.js";
+
+const publicKey = (process.env.VAPID_PUBLIC_KEY || "").trim();
+const privateKey = (process.env.VAPID_PRIVATE_KEY || "").trim();
+const subject = (process.env.VAPID_SUBJECT || "mailto:admin@souqsyria.org").trim();
+
+let pushReady = false;
+
+try {
+  if (publicKey && privateKey) {
+    webpush.setVapidDetails(subject, publicKey, privateKey);
+    pushReady = true;
+  }
+} catch (e) {
+  // Never crash API because of bad VAPID
+  console.error("PUSH_DISABLED: invalid VAPID keys. Fix VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY in apps/api/.env");
+  console.error(e?.message || e);
+  pushReady = false;
+}
+
+export function getVapidPublicKey() {
+  return publicKey;
+}
+
+export function isPushReady() {
+  return pushReady;
+}
+
+export async function upsertSubscription({ guestId, endpoint, p256dh, auth, userAgent }) {
+  await pool.query(
+    `INSERT INTO push_subscriptions (guest_id, endpoint, p256dh, auth, user_agent)
+     VALUES ($1,$2,$3,$4,$5)
+     ON CONFLICT (endpoint) DO UPDATE
+     SET guest_id=EXCLUDED.guest_id, p256dh=EXCLUDED.p256dh, auth=EXCLUDED.auth, user_agent=EXCLUDED.user_agent`,
+    [guestId, endpoint, p256dh, auth, userAgent || ""]
+  );
+}
+
+export async function deleteSubscription({ endpoint }) {
+  await pool.query(`DELETE FROM push_subscriptions WHERE endpoint=$1`, [endpoint]);
+}
+
+export async function sendPushToGuest({ guestId, payload }) {
+  if (!pushReady) return { ok: false, error: "PUSH_NOT_READY", sent: 0 };
+
+  const r = await pool.query(
+    `SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE guest_id=$1`,
+    [guestId]
+  );
+
+  for (const s of r.rows) {
+    const sub = {
+      endpoint: s.endpoint,
+      keys: { p256dh: s.p256dh, auth: s.auth }
+    };
+
+    try {
+      await webpush.sendNotification(sub, JSON.stringify(payload));
+    } catch (e) {
+      const msg = String(e?.message || e);
+      if (msg.includes("410") || msg.includes("404")) {
+        await deleteSubscription({ endpoint: s.endpoint });
+      }
+    }
+  }
+}

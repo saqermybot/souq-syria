@@ -1,0 +1,246 @@
+"use client";
+import { useEffect, useRef, useState } from "react";
+import { apiGet, apiPost } from "@/lib/api";
+import { getGuestId } from "@/lib/guest";
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+
+function supportsPush() {
+  try {
+    return (
+      typeof window !== "undefined" &&
+      "Notification" in window &&
+      "serviceWorker" in navigator &&
+      "PushManager" in window
+    );
+  } catch {
+    return false;
+  }
+}
+
+export default function ThreadPage({ params }) {
+  const threadId = params?.id;
+
+  const [loading, setLoading] = useState(true);
+  const [thread, setThread] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [text, setText] = useState("");
+  const [err, setErr] = useState("");
+
+  const listRef = useRef(null);
+  const myGuest = useRef("");
+
+  // Post-send notification prompt
+  const [showNotifPrompt, setShowNotifPrompt] = useState(false);
+  const [notifBusy, setNotifBusy] = useState(false);
+  const [notifErr, setNotifErr] = useState("");
+
+  useEffect(() => {
+    try { myGuest.current = getGuestId(); } catch { myGuest.current = ""; }
+  }, []);
+
+  function scrollToBottom() {
+    const el = listRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }
+
+  async function load({ silent=false } = {}) {
+    if (!silent) setErr("");
+    try {
+      if (!threadId) throw new Error("BAD_ID");
+      const r = await apiGet(`/api/messages/thread/${threadId}`);
+      setThread(r.thread);
+      setMessages(r.messages || []);
+      setTimeout(scrollToBottom, 80);
+    } catch (e) {
+      setErr(String(e.message || e));
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, [threadId]);
+
+  async function enableNotifications() {
+    setNotifErr("");
+    setNotifBusy(true);
+    try {
+      if (!supportsPush()) throw new Error("NOT_SUPPORTED");
+
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") {
+        setShowNotifPrompt(false);
+        return;
+      }
+
+      const reg = await navigator.serviceWorker.register("/sw.js");
+
+      const k = await apiGet("/api/push/vapid-public-key");
+      const publicKey = k?.publicKey;
+      if (!publicKey) throw new Error("MISSING_VAPID_PUBLIC_KEY");
+
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey),
+        });
+      }
+
+      const payload = sub.toJSON ? sub.toJSON() : sub;
+      await apiPost("/api/push/subscribe", payload);
+
+      setShowNotifPrompt(false);
+    } catch (e) {
+      setNotifErr(String(e.message || e));
+    } finally {
+      setNotifBusy(false);
+    }
+  }
+
+  async function send() {
+    const msg = text.trim();
+    if (!msg) return;
+
+    const gid = myGuest.current || "";
+    setText("");
+
+    // Optimistic UI message
+    const optimistic = {
+      id: "tmp-" + Date.now(),
+      sender_role: "buyer",
+      sender_guest_id: gid,
+      text: msg,
+      created_at: new Date().toISOString(),
+      _optimistic: true,
+    };
+    setMessages((prev) => [...prev, optimistic]);
+    setTimeout(scrollToBottom, 50);
+
+    try {
+      await apiPost(`/api/messages/thread/${threadId}/send`, { text: msg });
+
+      // One refresh to reconcile ids/timestamps
+      await load({ silent: true });
+
+      // After successful send, suggest enabling notifications (no auto prompt)
+      try {
+        if (supportsPush() && Notification.permission === "default") {
+          setNotifErr("");
+          setShowNotifPrompt(true);
+        }
+      } catch {}
+    } catch (e) {
+      alert(e.message);
+      // remove optimistic if failed
+      setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
+    }
+  }
+
+  function onKeyDown(e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      send();
+    }
+  }
+
+  const isMine = (m) => myGuest.current && m.sender_guest_id === myGuest.current;
+
+  if (loading) return <div className="card"><div className="card-body">Loading...</div></div>;
+  if (err) return <div className="card"><div className="card-body">Error: {err}</div></div>;
+
+  return (
+    <div style={{ paddingBottom: 72 }}>
+      <div className="row" style={{ marginBottom: 10, alignItems: "center" }}>
+        <div style={{ display:"flex", alignItems:"center", gap: 10 }}>
+          {thread?.ad_image ? (
+            <img src={thread.ad_image} alt="thumb" width="36" height="36" style={{ borderRadius: 10, objectFit:"cover", border:"1px solid var(--border)" }} />
+          ) : null}
+          <div>
+            <div style={{ fontWeight: 900, fontSize: 18 }}>{thread?.ad_title || "محادثة"}</div>
+            <div className="muted" style={{ fontSize: 12 }}>{thread?.seller_name || "Seller"} {thread?.seller_is_verified ? "✅" : ""}</div>
+          </div>
+        </div>
+
+        <button className="btn" onClick={() => (window.history.length > 1 ? window.history.back() : (window.location.href="/messages"))} style={{ marginInlineStart: 0, marginInlineEnd: "auto" }}>
+          ← الرجوع
+        </button>
+      </div>
+
+      {showNotifPrompt ? (
+        <div className="card" style={{ marginBottom: 10 }}>
+          <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ fontWeight: 900 }}>🔔 هل تريد إشعارًا عند وصول الرد؟</div>
+            <div className="muted">حتى لا يفوتك أي رد على رسالتك.</div>
+
+            {notifErr ? (
+              <div className="muted" style={{ color: "var(--danger)", fontWeight: 900 }}>
+                فشل التفعيل: {notifErr}
+              </div>
+            ) : null}
+
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button className="btn btn-primary" onClick={enableNotifications} disabled={notifBusy}>
+                {notifBusy ? "جارٍ التفعيل..." : "تفعيل الإشعارات"}
+              </button>
+              <button className="btn" onClick={() => setShowNotifPrompt(false)} disabled={notifBusy}>
+                لاحقًا
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <div ref={listRef} className="card" style={{ height: "62vh", overflowY: "auto" }}>
+        <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 10, paddingBottom: 90 }}>
+          {messages.map((m) => {
+            const mine = isMine(m);
+            return (
+              <div key={m.id} style={{ maxWidth: "85%", marginInlineStart: mine ? "auto" : 0, marginInlineEnd: mine ? 0 : "auto", textAlign: "right" }}>
+                <div style={{
+                  padding: "8px 12px",
+                  borderRadius: 14,
+                  background: mine ? "var(--chat-mine)" : "var(--chat-other)",
+                  border: "1px solid var(--border)"
+                }}>
+                  <div style={{ whiteSpace: "pre-wrap" }}>{m.text}</div>
+                  <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>
+                    {new Date(m.created_at).toLocaleTimeString("ar")} {m._optimistic ? "…" : ""}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          {messages.length === 0 ? <div className="muted">لا توجد رسائل بعد.</div> : null}
+        </div>
+      </div>
+
+      <div style={{
+        position: "fixed",
+        left: 0,
+        right: 0,
+        bottom: 0,
+        padding: "8px 10px",
+        background: "var(--card)",
+        borderTop: "1px solid var(--border)"
+      }}>
+        <div className="row" style={{ gap: 8, alignItems: "center" }}>
+          <button className="btn btn-primary" onClick={send} style={{ minWidth: 80, height: 40 }}>
+            إرسال
+          </button>
+          <input className="input" value={text} onChange={(e)=>setText(e.target.value)} onKeyDown={onKeyDown} placeholder="اكتب رسالة..." style={{ flex: 1, height: 40 }} />
+        </div>
+      </div>
+    </div>
+  );
+}

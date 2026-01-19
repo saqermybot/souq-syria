@@ -1,0 +1,170 @@
+"use client";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import ImageSlider from "@/components/ImageSlider";
+import { apiGet, apiPost, apiDelete } from "@/lib/api";
+import { formatPrice } from "@/lib/format";
+import { getGuestId } from "@/lib/guest";
+
+export default function AdDetails({ params }) {
+  const id = params.id;
+
+  const [item, setItem] = useState(null);
+  const [err, setErr] = useState("");
+  const [expanded, setExpanded] = useState(false);
+  const [chatBusy, setChatBusy] = useState(false);
+
+  async function load() {
+    setErr("");
+    try {
+      const data = await apiGet(`/api/ad/${id}`);
+      setItem(data.item);
+    } catch (e) {
+      setErr(String(e.message || e));
+    }
+  }
+
+  async function registerView() {
+    try { await apiPost(`/api/ad/${id}/view`, {}); } catch {}
+  }
+
+  async function toggleFav() {
+    try { await apiPost(`/api/ad/${id}/favorite`, {}); await load(); }
+    catch (e) { alert(e.message); }
+  }
+
+  async function openChat() {
+    try {
+      setChatBusy(true);
+      const r = await apiPost("/api/messages/open", { ad_id: Number(id) });
+      window.location.href = `/messages/thread/${r.thread_id}`;
+    } catch (e) {
+      const msg = String(e?.message || e);
+        if (msg.includes("CANNOT_MESSAGE_SELF")) {
+          alert("هذا إعلانك ✅");
+        } else {
+          alert("فشل فتح المحادثة: " + msg);
+        }
+    } finally {
+      setChatBusy(false);
+    }
+  }
+
+  async function del() {
+    if (!confirm("حذف الإعلان؟")) return;
+    try { await apiDelete(`/api/ad/${id}`); window.location.href="/"; }
+    catch (e) { alert(e.message); }
+  }
+
+  useEffect(() => { load(); registerView(); }, [id]);
+
+  if (err) return <div className="card"><div className="card-body">Error: {err}</div></div>;
+  if (!item) return <div className="card"><div className="card-body">Loading...</div></div>;
+
+  const images = item.images || [];
+  const sellerId = item.seller_id || "";
+  const sellerLink = sellerId ? `/seller/` : "";
+
+    const myGuest = (() => { try { return getGuestId(); } catch { return ""; } })();
+    const ownerGuest = item.seller_guest_id || item.ad_seller_guest_id || "";
+    const isMine = !!(myGuest && ownerGuest && myGuest === ownerGuest);
+
+
+  return (
+    <div>
+      <div className="row" style={{ marginBottom: 12 }}>
+        <Link className="btn" href="/">← رجوع</Link>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button className="btn" onClick={openChat} disabled={chatBusy}>
+            {chatBusy ? "..." : "💬 رسالة"}
+          </button>
+          <button className="btn" onClick={del} style={{ borderColor:"rgba(255,90,90,.5)" }}>🗑 حذف</button>
+        </div>
+      </div>
+
+      <div className="card" style={{ overflow:"hidden" }}>
+        {images.length ? (
+          <div style={{ position:"relative" }}>
+            <ImageSlider images={images} alt={item.title} />
+
+            <button
+              className="fav-bubble"
+              style={{ position:"absolute", top:12, right:12 }}
+              onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); toggleFav(); }}
+              title="Favorite"
+            >
+              <span className="fav-icon">♡</span>
+              <span className="fav-count">{item.favorites_count || 0}</span>
+            </button>
+          </div>
+        ) : null}
+
+        <div className="card-body">
+          <h1 style={{ margin: "0 0 6px", fontSize: 22, fontWeight: 900 }}>{item.title}</h1>
+          <div className="muted" style={{ fontSize: 13 }}>{item.province} • {item.deal_type}</div>
+
+          <div className="hr" />
+
+          <div className="row">
+            <div style={{ fontWeight: 900, fontSize: 18 }}>
+              {formatPrice(item.price, item.currency)}
+            </div>
+            <div className="muted" style={{ fontSize: 12 }}>❤️ {item.favorites_count}</div>
+          </div>
+
+          <div className="hr" />
+
+          <div className="card" style={{ background:"rgba(255,255,255,.03)", borderColor:"rgba(255,255,255,.07)", boxShadow:"none" }}>
+            <div className="card-body" style={{ display:"flex", justifyContent:"space-between", gap:10 }}>
+              <div>
+                <div style={{ fontWeight: 800, marginBottom: 4 }}>
+                  البائع {item.seller_is_verified ? "✅ موثق" : ""}
+                </div>
+
+                {sellerLink ? (
+                  <Link href={sellerLink} className="muted" style={{ textDecoration:"underline" }}>
+                    عرض صفحة البائع
+                  </Link>
+                ) : <div className="muted">—</div>}
+
+                <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>
+                  تاريخ الإعلان: {new Date(item.created_at).toLocaleDateString("ar")}
+                </div>
+              </div>
+
+              <div style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
+                <button className="btn" onClick={openChat} disabled={chatBusy}>
+                  {chatBusy ? "..." : "💬 رسالة"}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="hr" />
+
+          <div>
+            <div style={{ fontWeight: 800, marginBottom: 6 }}>الوصف</div>
+
+            <div
+              style={{
+                whiteSpace: "pre-wrap",
+                overflow: "hidden",
+                display: "-webkit-box",
+                WebkitBoxOrient: "vertical",
+                WebkitLineClamp: expanded ? "unset" : 2
+              }}
+            >
+              {item.description}
+            </div>
+
+            {item.description && item.description.length > 120 ? (
+              <button className="btn" style={{ marginTop: 10 }} onClick={() => setExpanded(v => !v)}>
+                {expanded ? "إخفاء" : "قراءة المزيد"}
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

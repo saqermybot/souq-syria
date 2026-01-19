@@ -1,0 +1,10 @@
+export function getGuestId() {
+  // guest id is server-managed via cookie
+  return "";
+}
+
+export function shortGuest(guestId) {
+  if (!guestId) return "Guest";
+  const tail = guestId.replace(/-/g, "").slice(-4).toUpperCase();
+  return `Guest-${tail}`;
+}
